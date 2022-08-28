@@ -1,0 +1,48 @@
+[b]Introduction[/b]
+
+Many JSFX algorithms and functions use arrays. In JS, you don't "declare' arrays, you have to "allocate" these arrays from a unique large memory area. 
+In this part, I will describe a static memory allocator. By "static", I mean that blocks are allocated once for all (typically in the [b]@init[/b] section), and are never freed. So this schema is mainly intended for plug-ins that use permanent arrays for their algorithms.
+
+Array allocation can be as simple as :
+[code]buff1=0;
+buff2=2000;[/code]
+which allocates two arrays, the first starting at 0, the second starting at 2000. Here, you just decide which part of the memory you will be using for your arrays.
+However, for complex programs, this approach can be prone to errors - for exemple, in computing the next free address, changing the size of the buffers, etc. So using a function is probably a better approach, like this version of "malloc" (in its shortest, unsafe form). 
+[code]freemem = 0; // allocate starting at 0 -- a different value can be used.
+function malloc(size) ((freemem += size) - size);
+buffsize = 2000;
+buff1=malloc(buffsize);
+buff2=malloc(buffsize);[/code]
+
+[b]A more elaborate allocator[/b]
+
+After using such a version for a few developments, I found I needed a more elaborate schema. Two years ago, I introduced in my memory allocation the concept of "m-block", or "memory block". An m-block is just a block of memory surrounded by a header and a trailer. The header is two words long, and contains the [i]type[/i] and the [i]size[/i] of the block. The "type" is a 4 characters constant, like [n]'data'[/n], [n]'code'[/n], etc. The "size" is the length of the inner part, without the header and the trailer. The trailer is also two words long, and contains the [i]size[/i] and the [i]~type[/i] of the block (this notation, "~type" represents the JS value "0x7FFFFFFF~type".
+The memory layout of such a block is therefore:
+[code]| type | size | word0 | word1 | ... | last_word | size | ~type |[/code]
+Finally, note that all allocated blocks are continuous in memory, constituing a sequence of blocks surrounded by a begin and a end marker.
+[b]Defined operations[/b]
+The defined operations are the following:
+[list]
+[*][b]MemInit(address)[/b]: define the memory location of the first word to be allocated for the memory allocation. [b]MemInit()[/b] starts allocating at address 0.
+[*][b]MemAlloc(size,type,flags)[/b]: allocate a new memory block, of size "size", of type "type", according to a set of flags. The parameter "flags" is an additive combination of the following values:
+[list]
+[*][b]MemFlClear[/b]: clear block contents once allocated
+[*][b]MemFlAlign[/b]: allocate inside a 64k boundary (useful for arrays used with functions like [b]mdct[/b], [b]fft[/b], etc.)
+[*][b]MemFlCheck[/b]: check memory before allocation
+[/list] 
+[*][b]MemCheck(address)[/b]: check the validity of the memory block at "address". [b]MemCheck()[/b] checks the whole static memory
+[/list]
+Note that the result of an allocation is the address of "word0", so the algorithms do not have to worry about the header and the trailer. But, if "add" is the address of a memory block a program gets from a malloc call, it can use add[-1] to get the size of the block, and add[-2] to get its type.
+
+[b]Debugging[/b]
+This organization has been adopted to simplify the debugging of new codes. Most errors linked to array involve writing in memory before the start of the array, or after its last element.
+The header and the trailer make it easy to check the correctness of a block, or to crawl the whole chain of allocated blocks. The redondency between the header and the trailer make it easy to discover programming errors.
+
+Another error involves using an undefined array reference (typing for exemple "talbe" instead of "table"). In this cases, the program is likely to write data at address 0 or followings. Then again, starting the allocation at address 0 can help discovering such cases.
+
+All the best !
+
+J. Jack.
+
+
+[b]TL;DR summary:[/b] a description of a quite basic static memory allocator.

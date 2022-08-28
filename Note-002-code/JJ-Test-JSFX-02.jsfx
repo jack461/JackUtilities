@@ -1,0 +1,49 @@
+desc:JJ-Test-JSFX-02
+
+
+import Mem-Static.jsfx-inc
+
+@init
+
+
+MemInit(8);
+chk1 = MemCheck(); // check the (empty) memory
+
+add1 =  malloc(3);
+add1z = MemFree;
+add2 =  malloc(0);
+add2z = MemFree;
+add3 =  MemAlloc(12, 'data', MemFlFill);
+add3z = MemFree;
+add4 =  MemAlloc(47725, 'xyzt', MemFlAlign);
+add4z = MemFree;
+
+add5 =  MemAlloc(32768, 'type', MemFlAlign);
+add5z = MemFree;
+chk2 = MemCheck();  // check all the blocks
+
+chk3 = MemCheck(add5); // check a specific block
+
+
+chk4 = MemCheck(add3z); // not a block
+
+// Look at the contents of block 3
+dat0 = add3[-2];
+dat1 = add3[-1];
+dat2 = add3[0];
+dat3 = add3[1];
+dat4 = add3[2];
+dat5 = add3[3];
+dat6 = add3[4];
+dat7 = add3[5];
+dat8 = add3[6];
+dat9 = add3[7];
+datA = add3[8];
+datB = add3[9];
+datC = add3[10];
+datD = add3[11];
+datE = add3[12];
+datF = add3[13];
+datG = add3[14];
+datH = add3[15];
+
