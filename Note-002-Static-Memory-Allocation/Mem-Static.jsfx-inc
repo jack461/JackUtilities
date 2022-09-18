@@ -1,8 +1,9 @@
 /*
    A Static Memory allocation
 
+   This library can be used to allocate memory blocks.
 
-    A block has the following structure :
+   A block has the following structure :
 
         [  type  ]
         [  size  ]
@@ -14,10 +15,10 @@
 
 
    MemInit();
-       // initialize memory management
+       // initialize memory management, starting allocation at "0"
    MemInit(x);
        // initialize, starting allocation at address "x"
-	
+
    MemAlloc(size, type, flags);
        // allocate a block of size "size" words,
        // with type "type" (use: 'data', 'blok', etc.)
@@ -29,8 +30,6 @@
 
    MemCheck(); // verify the memory
 
-   malloc(size); // classical malloc
-
 */
 
 @init
@@ -38,18 +37,19 @@
 function MemInit(start)
 (
     MemStart = 0|max(0, start); // where to start from
-    MemLow =  0x7FDA04C1; // Low memory marker
-    MemHigh = 0x7FAD03C2; // high memory marker
-    MemKey_min = 0x21212121; // The minim. key for a memory object
-    MemKey_max = 0x7E7E7E7E; // the max. key for a memory object.
-    MemZone = 0x7FFF0000; // get the zone ID of a mem address
+    MemLow =  0x7FDA04C1; // Low memory marker :  2144994497
+    MemHigh = 0x7FAD03C2; // high memory marker : 2142045122
+    MemKey_min = 0x21212121; // The minim. key for a memory object:  555819297
+    MemKey_max = 0x7E7E7E7E; // the max. key for a memory object:   2122219134
+    MemZone = 0x7FFFFF0000; // get the zone ID of a mem address
     MemLoc = 0xFFFF; // location inside a zone
-    MemMaxRq = 0x7FFFF; // max. request for an malloc
+    MemMaxRq = 0x7FFFFFFF; // max. request for an malloc
     MemFree = MemStart + 1; // The allocation pointer
-    MemBlockSize = -1;
-    MemBlockType = -2;
     MemFree[-1] = MemLow;
     MemFree[0] = MemHigh;
+    MemBlockType = -2;
+    MemBlockSize = -1;
+    MemTop = __memtop() - 4;
     MemFlClear = 1; // clear block contents once allocated
     MemFlAlign = 2; // allocate inside a 64k boundary
     MemFlCheck = 4; // check memory before allocation
@@ -79,18 +79,22 @@ local (pt, t, s)
                 ((t < MemKey_min) || (t > MemKey_max)) ? (
                     MemErr = 110; // invalid type
                     MemErrLoc = pt+2;
+                    MemErrAux = t;
                 ) :
                 (((s = pt[1]) < 0) || (s > MemMaxRq)) ? (
                     MemErr = 112; // invalid length
                     MemErrLoc = pt+2;
+                    MemErrAux = s;
                 ) :
                 (s != pt[s+2]) ? (
                     MemErr = 113; // non matching length
                     MemErrLoc = pt+2;
+                    MemErrAux = s;
                 ) :
                 (t != (pt[s+3] ~ 0x7FFFFFFF)) ? (
                     MemErr = 114; // non matching type
                     MemErrLoc = pt+2;
+                    MemErrAux = t;
                 ) : (
                     pt = pt + s + 4;
                     (pt[0] == MemHigh) ? pt = 0;
@@ -102,63 +106,77 @@ local (pt, t, s)
             ((t < MemKey_min) || (t > MemKey_max)) ? (
                 MemErr = 110; // invalid type
                 MemErrLoc = pt+2;
+                MemErrAux = t;
             ) :
             (((s = pt[1]) < 0) || (s > MemMaxRq)) ? (
                 MemErr = 112; // invalid length
                 MemErrLoc = pt+2;
+                MemErrAux = s;
             ) :
             (s != pt[s+2]) ? (
                 MemErr = 113; // non matching length
                 MemErrLoc = pt+2;
+                MemErrAux = s;
             ) :
             (t != (pt[s+3] ~ 0x7FFFFFFF)) ? (
                 MemErr = 114; // non matching type
                 MemErrLoc = pt+2;
-            ) : (
-                pt = pt + s + 4;
-                (pt[0] == MemHigh) ? pt = 0;
+                MemErrAux = t;
             );
         );
+    );
+    (MemErr && (MemGlobFlgs & MemFlSigErr)) ? (
+        s = #; sprintf(s, "MemError %d at %d", MemErr, MemErrLoc);
+        strcpy(#dbg_desc, s);
     );
     MemErr;
 );
 
 function MemAlloc(size, type, flags)
-local (add, fill)
+local (add, fill, s)
 (
+    add = MemFree + 2;
     flags |= MemGlobFlgs; // merge with global flags
-    (flags & MemFlCheck) ? (
-        MemCheck();
+    ((size + MemFree) > MemTop) ? (
+        MemErr = 108; MemErrLoc = 0;
+    ) : (
+        (flags & MemFlCheck) ? (
+            MemCheck();
+        );
     );
     ((flags & MemFlSigErr) && (MemErr != 0)) ? (
+        s = #; sprintf(s, "MemError %d at %d", MemErr, MemErrLoc);
+        strcpy(#dbg_desc, s);
         add = 0;
     );
-    size = 0|min(MemMaxRq, max(0, size));
-    type = 0|min(MemKey_max, max(MemKey_min, type));
-    flags = 0|flags;
-    add = MemFree + 2;
-    // Should the block be limited to a 64k zone ?
-    ((flags & MemFlAlign) && ((add & MemZone) != ((add + size - 1) & MemZone))) ? (
-        // create a filler block of the appropriate size
-        fill = 0x10000 - (MemFree & MemLoc) - 6; 
-        add[-2] = 'fill';
-        add[-1] = fill;
-        MemFree = add + fill + 2;
-        MemFree[-2] = fill;
-        MemFree[-1] = 'fill' ~ 0x7FFFFFFF;
-        add = MemFree + 2;
+    add ? (
+        size = 0|min(MemMaxRq, max(0, size));
+        type = 0|min(MemKey_max, max(MemKey_min, type));
+        flags = 0|flags;
+        // Should the block be inside a 64k zone ?
+        ((flags & MemFlAlign) && ((add & MemZone) != ((add + size - 1) & MemZone))) ? (
+            // create a filler block of the appropriate size
+            fill = 0x10000 - (MemFree & MemLoc) - 6; 
+            add[-2] = 'fill';
+            add[-1] = fill;
+            MemFree = add + fill + 2;
+            MemFree[-2] = fill;
+            MemFree[-1] = 'fill' ~ 0x7FFFFFFF;
+            add = MemFree + 2;
+        );
+        add[-2] = type;
+        add[-1] = size;
+        MemFree = add + size + 2;
+        MemFree[-2] = size;
+        MemFree[-1] = type ~ 0x7FFFFFFF;
+        MemFree[0] = MemHigh;
+        (flags & MemFlClear) ? memset(add, 0, size) :
+        (flags & MemFlFill) ? memcpy(add, 0|rand(MemFree), size);
     );
-    add[-2] = type;
-    add[-1] = size;
-    MemFree = add + size + 2;
-    MemFree[-2] = size;
-    MemFree[-1] = type ~ 0x7FFFFFFF;
-    MemFree[0] = MemHigh;
-    (flags & MemFlFill) ? memcpy(add, 0|rand(MemFree), size);
-    (flags & MemFlClear) ? memset(add, 0, size);
     add;
 );
 
-function malloc(size) ( MemAlloc(size, 'data', 0); );
+// function malloc(size) ( MemAlloc(size, 'data', 0); );
+// function calloc(count,size) ( MemAlloc(count*size, 'data', MemFlClear); );
 
 

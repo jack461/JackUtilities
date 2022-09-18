@@ -1,0 +1,50 @@
+[b]Presentation[/b]
+
+While developping a large project in JSFX, I took a lot of notes on paper about the various aspects of what I was doing, and how I did solve a few problems. As a former teacher in computer science, it appeared to me that, with much editing, these informations could be pertinent to others users of JSFX. It's not a course, it's certainely bad organized, and it's still a work in progress. But maybe, it could be useful for you, and also, when I'm wrong, maybe you can correct me.
+
+[b]What's wrong with JSFX ?[/b]
+
+I have been mainly programming in JSFX these last three years, and I have spent a lot of time wondering if I should not switch to another language such as C. To be honest, JSFX is quite usable, but it is far from beeing perfect. And to use it efficiently, you have to understand well its possibilities and its shortcomings. I take the following example from Justin Frankel himself, in his [i]super8 looper[/i] code:
+
+[code]
+function setstate_for_rec(rec, state) (
+  // ugly cruft
+  rec = (rec-mem_stlist)/st_num;
+  rec == 0 ? ch1.setstate(state) :
+  rec == 1 ? ch2.setstate(state) :
+  rec == 2 ? ch3.setstate(state) :
+  rec == 3 ? ch4.setstate(state) :
+  rec == 4 ? ch5.setstate(state) :
+  rec == 5 ? ch6.setstate(state) :
+  rec == 6 ? ch7.setstate(state) :
+  rec == 7 ? ch8.setstate(state);
+);
+[/code]
+Don't get me wrong. I won't say that this code is ugly. In fact, it is probably the best that you can do. However, it reveals two features lacking in JSFX : arrays of "objects", and a switch/case instruction. I do tend to consider that you can't do much work with "objects" in JSFX as they are implemented, mainly because of the lack of arrays of objects, and that most of the time you can use a different and more efficient approach. On the other hand, I often found that I missed a switch construct. 
+
+The switch/case missing construct can be implemented with (or compiled as) a succession of conditionals, but when the tested value is an element in a dense sequence of integers, like in this case (all values from 0 to 7), most compilers can provide a much efficient code.
+
+So JSFX has pros and cons, I will try in this thread to discuss them, and possibly explain some of the tricks I use to get around them.
+
+The things I intend to discuss are related to "advanced" JSFX programming, like arrays, tables, memory and memory allocation, strings, objects, switch construct, and certainely a few other subjects. I will also point out things that I consider as "not so good" designs in eel2/JSFX, and in some cases provide solutions to some shortcomings of the language. There are many documentations and introductions to JSFX programming, like, just to reference a few of them:
+[list]
+[*][url=http://reaper.fm/sdk/js/js.php]First, the Cockos documentation[/url]
+[*][url=https://wiki.cockos.com/wiki/index.php/1st_Ever_Jesusonic_Tutorial]The 1st Ever Jesusonic Tutorial, by Michael "LOSER" Gruh[/url]
+[*][url=https://www.youtube.com/c/leafac/videos]The various videos by Leandro Facchinetti[/url]
+[/list]
+
+However, I'll try to cover original subjects, and I'll put here the various parts as links to messages in the thread. Let me know if you need more detailed informations for each aspect!
+
+[b]Table of contents[/b]
+[list]
+[*]About declarations
+[*]A static memory allocator
+[*]Numbers Properties
+[*]...
+[/list]
+
+All the best !
+
+J. Jack.
+
+[b]TL;DR summary:[/b] a slightly ambitious project :-)

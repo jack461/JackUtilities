@@ -5,21 +5,22 @@ import Mem-Static.jsfx-inc
 
 @init
 
-
+function malloc(size) ( MemAlloc(size, 'data', 0); );
 MemInit(8);
+MemGlobFlgs = MemFlSigErr;
 chk1 = MemCheck(); // check the (empty) memory
 
 add1 =  malloc(3);
-add1z = MemFree;
+add1z = MemFreePt;
 add2 =  malloc(0);
-add2z = MemFree;
+add2z = MemFreePt;
 add3 =  MemAlloc(12, 'data', MemFlFill);
-add3z = MemFree;
+add3z = MemFreePt;
 add4 =  MemAlloc(47725, 'xyzt', MemFlAlign);
-add4z = MemFree;
+add4z = MemFreePt;
 
 add5 =  MemAlloc(32768, 'type', MemFlAlign);
-add5z = MemFree;
+add5z = MemFreePt;
 chk2 = MemCheck();  // check all the blocks
 
 chk3 = MemCheck(add5); // check a specific block
@@ -47,3 +48,7 @@ datF = add3[13];
 datG = add3[14];
 datH = add3[15];
 
+
+//
+MemErr = 0;
+add6 = MemAlloc(8000000, 'data', 0);

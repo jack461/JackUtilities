@@ -1,0 +1,33 @@
+[b]Declarations[/b]
+
+My main problem with JSFX have always been the declations, and more specifically, the lack of them.
+
+Although I have been programming for a lot of years, I'm not a good typist. I make typos, and when I spell wrong a variable name, there is almost no help from the system to discover that. My "new" created variable has just a value of zero, and that's it. No error signaled. But any algorithm that uses "this" variable is now probably incorrect.
+
+So my first request about JSFX would be [i]Provide an [b]option[/b] (like: [b]options:declare_variables[/b]) to make variables declations mandatory, with a keyword such as [b]variable[/b], [b]var[/b], [b]dcl[/b], [b]define[/b], [b]def[/b], or even [b]ISolemnlyDeclareIWantToUseTheFollowingVariables[/b].[/i] So, [b]var toto=2;[/b] would be [i]accepted[/i] if the option is not set, and would be [i]mandatory[/i] if the option is set.
+
+Currently, a solution is to use the REAPER integrated editor that shows to the right of its screen the list of used variables, and look for variables that are used only once, and therefore are likely to be typos, or at least unused variables. A nice feature, in this editor, would be to be able to sort the list of variables by the number of time they are used, which would simplify this task, but this is unfortunately not implemented.
+
+(As of variables, I have yet to understand why such a deprecated feature as the case insensivity of variables names is kept in JSFX -- but I can manage that.)
+
+Note also that variables not "declared" (i.e. "introduced" by a statement like [b]toto=0;[/b]) in the [b]@init[/b] section are local to the section where they are used. So, you need to check that [b]toto[/b] that you set in your [b]@block[/b] section and use in your [b]@gfx[/b] section is also declared in your [b]@init[/b] section.
+
+I must admit that I have no solution to the problem of wrong spelled variables. A few hints:
+
+- when a sub algorithm of your application uses a set of global variables, use the same significative prefix for them, so they are alphabetically grouped. It is easy to see them all at once, at run time, in the integrated editor debugger.
+
+- "declare" all variables you use at the beginning of the [b]@init[/b] section, in alphabetical order. Then, you can easily compare your "left" list, in the code, with your "right" list, in the debugger pannel.
+
+- verify frequently that you do not have variables used only once, and if so, check why.
+
+- for large applications use an external modern editor (I use [i]VSCode[/i], and declare [b].jsfx[/b] and [b].jsfx-inc[/b] files to be of type "javascript", so syntax enlightening is almost correct).
+
+- and, also, [i]know your basics in computer science, and read more than once the JSFX documentation[/i] !
+
+Have you already bumped on such problems, and how did you manage it ? Have you some suggestion ?
+
+All the best !
+
+J. Jack.
+
+[b]TL;DR summary:[/b] for now, a user of JSFX is just complaining about the state of things :-)
