@@ -1,0 +1,154 @@
+[b]Introduction[/b]
+
+I will discuss here some aspects of the strings management in JSFX. Since there exists a single data type in the language, the double-precision floating point number (see the [url=https://en.wikipedia.org/wiki/Double-precision_floating-point_format]Wikipedia entry[/url]), and my Note about [url=https://forum.cockos.com/showthread.php?p=2597178#post2597178]Numbers Properties[/url], strings are refered to by an "integer" number, expressed as a double.
+
+JSFX provides 4 kinds of strings:
+[list]
+[*]predefined strings, allocated with an internal reference starting at 0, up to 1023. There are 1024 of them.
+[*]constant strings, immutable, representing constant strings used in the program, with an internal number starting at 10000. Identical constants are represented by the same number.
+[*]program strings, corresponding to string variables explicitely used in the program, with an internal number starting at 90000.
+[*]temporary strings, also declared in the program, with a different number allocated for each occurence in the source text of a single '#' used, and with an internal number starting at 190000.
+[/list]
+The following code exemplifies these categories:
+[code]@init
+str01 = "Hello";  // => 10000
+str02 = "";       // => 10001
+str03 = "World";  // => 10002
+str04 = "";       // => 10001 -- already encountered, same number
+str05 = "Hello";  // => 10000    "
+str06 = "World";  // => 10002    "
+str07 = " ";      // => 10003 -- different from others, different number
+str10 = #;        // => 190000
+str11 = #;        // => 190001
+str12 = #;        // => 190002
+str13 = #;        // => 190003
+str20 = #A;       // => 90000
+str21 = #B;       // => 90001
+str22 = #C;       // => 90002
+str23 = #B;       // => 90001
+str24 = #A;       // => 90000[/code]
+Note that these internal numbers are allocated in the order of apparition of the items in the source code.
+
+These four categories constitute a closed set of strings, whose count is equal to 1024+(number of different constants used)+(number of different variables used)+(number of differents temporary symbols "#" used). Another way of saying that is that you can't dynamically allocate new strings at run time. I don't know the maximum number of constants or program strings you can use, but one of my effect uses a few thousands of strings.
+
+The strings functions refer to strings by their internal number. A function like "strcpy" expects as its first parameter the number of a mutable string, and as its second one the number of any string. Memory allocation for creating or expending strings is managed by the system, and they can "grow" up to 16k bytes. All in all, string management performs quite well in JSFX.
+
+So the actual limitation I found is that I can't dynamically allocate strings at run-time. Hence the approach proposed here.
+
+[n]A dynamic strings allocation[/n]
+
+In some cases, not very often, you may need many strings, a lot of them, allocate them dynamically, free them, etc. As an example, if you want to dynamically manage menus in the graphic section, you may need to explode a string into an array of substring, or implode a set of strings. I will describe here the way I manage dynamic strings allocation.
+
+First thing you need is a pool of strings. If you need thousands of them, the only way to do it is create enough program strings. They must have different names. You must keep track of their internal number, etc. The first thing I designed is a C program to generate the strings I need. Here is an example of its output for the generation of a pool of 16 strings. 
+[code]@init
+#strFirst="";
+#strx00002="";#strx00003="";#strx00004="";#strx00005="";#strx00006="";
+#strx00007="";#strx00008="";#strx00009="";#strx00010="";#strx00011="";
+#strx00012="";#strx00013="";#strx00014="";#strx00015="";
+#strLast="";
+[/code]
+Using the program is quite simple:
+[code]$ build_strings -h
+build_strings: Build an array of strings that can be used for dynamic allocation
+Syntax:
+    build_strings [-h] [-c count] [-w cols] [-o off] [-f first] [-l last] [-p pref]
+        -h: print this help
+        -c count: number of strings to generate
+        -w cols: number of definitions on each line
+        -f str: name for the first string
+        -l str: name for the last string
+        -p pref: prefix for the other strings
+        -o off: a numeric offset added to the strings numbers
+$[/code]
+If the output of the program is redirected to a file, like "string-set.jsfx-inc", you just have to import the file in your plug-in.
+
+Since the JSFX JIT compiler allocates sequentially the program strings, all strings with numbers between #strFirst and #strLast now exist.
+
+You need then to allocate and free on demand these strings. A first idea is to associate a status with each string (free or allocated), keep these values in an array, and use them for allocating the strings and checking their value. A first version could be the following:
+[code] 
+function StrInit(first, last)
+local ()
+(
+    StrFirst = first; StrLast = last; StrCount = last-first+1;
+    StrUptr = 0;
+    StrUse = MemAlloc(StrCount, 'strs', MemFlClear);
+);
+function StrAlloc(val)
+local (xcnt, z)
+(
+    xcnt = StrCount;
+    while (StrUse[StrUptr] != 0  && xcnt > 0) (
+        StrUptr = (StrUptr + 1) % StrCount; xcnt -= 1;
+    );
+    (xcnt > 0) ? (
+        StrUse[StrUptr] = 1;
+        z = StrUptr + StrFirst; // the string number
+    ) : (
+        z = 0;
+    );
+    val == 0 ? val = "";
+    strcpy(z, val);
+    z;
+);
+function StrFree(str)
+(
+    (str >= StrFirst) && (str <= StrLast) ? (
+        StrUse[str - StrFirst] = 0;
+    );
+);
+// Creation of the pool
+StrInit(#strFirst, #strLast);
+// get a string, initially empty:
+s1 = StrAlloc();
+// get a string with an initial value:
+s2 = StrAlloc("The initial value");
+// free your strings
+StrFree(s1); StrFree(s2);
+[/code]
+The code uses a single array of size [i]N[/i], where [i]N[/i] is the number of available strings. Here, the desallocation of a string is in [i]O(1)[/i], but the allocation is in [i]O(N)[/i] (in some cases, you have to scan the whole array to find an available string).
+
+However, we can provide a [i]O(1)[/i] allocation, using an additionnal array to keep in a stack the identification of free strings. We push all the identifications of available strings in the stack. We pull the top of the stack to get a free string, and push in the stack the identifiction of a string you want to free. In the new version of the code, we also need to keep for each string the boolean information that it is allocated or not. This helps making sure that we don't free twice the same string.
+[code]function StrInit(first, last)
+local (i)
+(
+    StrFirst = first; StrLast = last; StrCount = last-first+1;
+    StrUse = MemAlloc(StrCount, 'stru', MemFlClear);
+    StrStack = MemAlloc(StrCount, 'strs', 0);
+    i=0; loop(StrCount, StrStack[i] = i+first; i+=1;);
+    StrUptr = StrCount - 1;
+);
+function StrAlloc(val)
+local (s, z)
+(
+    (StrUptr >= 0) && ((s = StrStack[StrUptr]) >= StrFirst)
+                   && (s <= StrLast) && (StrUse[z = s - StrFirst] == 0) ? (
+        StrUse[z] = 1;
+        StrUptr -= 1;
+    ) : (
+        s = 0;
+    );
+    val == 0 ? val = "";
+    strcpy(s, val);
+    s;
+);
+function StrFree(str)
+local (n)
+(
+    (str >= StrFirst) && (str <= StrLast) && (StrUse[n = str - StrFirst] == 1) ? (
+        StrUse[n] = 0;
+        StrUptr +=1;
+        StrStack[StrUptr] = str;
+    );
+);
+[/code]
+This new version has both "allocate" and "free" functions in O(1), which is a good thing, since JSFX are supposed to work in real time. In both versions, StrAlloc() returns 0 if there is no more string to allocate, but this won't break a program which use this function and don't test the result, since 0 is also a valid string identification. Note also that we use it the static memory allocation, described in [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]a previous note[/url], so you have to include this library first.
+
+As would say our excellent Kenny Gioia, "Hope you've learned something, hope you can use it !".
+
+All the best !
+
+J. Jack.
+
+Get text and functions in my [url=https://github.com/jack461/JackUtilities]JackUtilities github[/url] (see "Note-004-xxx").
+
+[b]TL;DR summary:[/b] about strings, and some aspects of their management.

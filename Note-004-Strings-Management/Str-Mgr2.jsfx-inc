@@ -1,0 +1,43 @@
+/*
+    A dynamic string allocator
+
+    needs the "Mem-Static2.jsfx-inc" library.
+*/ 
+@init
+
+function StrInit(first, last)
+local (i)
+(
+    StrFirst = first; StrLast = last; StrCount = last-first+1;
+    StrUse = MemAlloc(StrCount, 'stru', MemFlClear);
+    StrStack = MemAlloc(StrCount, 'strs', 0);
+    i=0; loop(StrCount, StrStack[i] = i+first; i+=1;);
+    StrUptr = StrCount - 1;
+);
+
+function StrAlloc(val)
+local (s, z)
+(
+    (StrUptr >= 0) && ((s = StrStack[StrUptr]) >= StrFirst) 
+                   && (s <= StrLast) && (StrUse[z = s - StrFirst] == 0) ? (
+        StrUse[z] = 1;
+        StrUptr -= 1;
+    ) : (
+        s = 0;
+    );
+    val == 0 ? val = "";
+    strcpy(s, val);
+    s;
+);
+
+function StrFree(str)
+local (n)
+(
+    (str >= StrFirst) && (str <= StrLast) && (StrUse[n = str - StrFirst] == 1) ? (
+        StrUse[n] = 0;
+        StrUptr +=1;
+        StrStack[StrUptr] = str;
+    );
+);
+
+

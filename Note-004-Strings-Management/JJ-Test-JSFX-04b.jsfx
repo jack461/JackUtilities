@@ -1,0 +1,33 @@
+desc:JJ-Test-JSFX-04b
+
+note: strings test 3
+
+import Mem-Static.jsfx-inc
+import Str-Set.jsfx-inc
+import Str-Mgr2.jsfx-inc
+
+@init
+
+MemInit();
+StrInit(#strFirst, #strLast);
+
+
+str0 = StrAlloc();
+str1 = StrAlloc();
+str2 = StrAlloc();
+str3 = StrAlloc("string 3");
+str4 = StrAlloc();
+str5 = StrAlloc();
+strcpy(str5, str3);
+StrFree(str2);
+StrFree(str4);
+str6 = StrAlloc();
+str7 = StrAlloc();
+str8 = StrAlloc();
+str9 = StrAlloc();
+str10 = StrAlloc();
+StrFree(str8);
+StrFree(str1);
+StrFree(str6);
+str11 = StrAlloc();
+str12 = StrAlloc();
