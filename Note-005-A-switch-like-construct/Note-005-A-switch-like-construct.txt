@@ -1,0 +1,208 @@
+[b]Introduction[/b]
+
+Some people (including myself) have already mentionned the lack in JSFX of a "switch" construct similar to the "C" one. There are many different usages for such a statement. A typical one is to compare a specific value (computed by program) to various, "unrelated" target values, and execute the code associated with this target. As an example of such a construct, I'll take the following C code:
+[code]switch(c)
+{
+    case 'h':
+        usage();
+        exit(0);
+    case 'e':
+        strncpy(Err, optarg, 63);
+        break;
+    case 't':
+        w = strtol(optarg, &pend, 0);
+        if (((*optarg)==0) || ((*pend)!=0) || (w < 0) || (w > 10))
+            gerror("Invalid -t argument. A number between 0 and 10 is expected.");
+        tabsiz = w;
+        break;
+    default:
+        sprintf(msgerr, "Unknown option: \"%c\".", optopt);
+        gerror(msgerr);
+}[/code]
+The tested values ('h', 'e', 't') are what I call "unrelated", and a sequence of conditionals in JSFX would be as good as what a "C" compiler could do:
+[code](c == 'h') ? (
+    usage(); exit(0); // should exit() exist in JSFX
+) :
+(c == 'e') ? (
+    strncpy(Err, optarg, 63);
+) :
+(c == 't') ? (
+    w = strtol(optarg, pend, 0); // strtol, really ?
+    ...
+) : (
+    sprintf(msgerr, "Unknown option: \"%c\".", optopt);
+    gerror(msgerr);
+);[/code]
+In both cases, I'll say that the whole construct is in O(N), where N is the number of values to test. Of course, if all tested values are not equiprobable, you'll choose to test the most frequent first.
+
+An other frequent usage of a switch construct is when the target of the tested value in the "switch" is a dense sequence of integers (like [0 .. 22]):
+[code]switch(c)
+{
+    case 0: ... ; break;
+    case 1: ... ; break;
+    case 2: ... ; break;
+    case 3: ... ; break;
+    case 4: ... ; break;
+    case 5: ... ; break;
+    case 6: ... ; break;
+    case 7: ... ; break;
+    case 8: ... ; break;
+    ....
+    case 22: ... ; break;
+    default: ... ; break;
+}[/code]
+Here the C compiler shines, because after a few tests about the value "c", it generates an indexed branch to the array of addresses of the various compiled case instructions. So, in "C", the complexity of this expression is O(1).
+
+Doing the same switch in JSFX with a sequence of conditionals is in O(N). Not that good. However, we can improve that a little, by changing the sequence of tests into a binary tree of tests. In this case, reaching any value is in O(log N). Quite better, for large N. For N==8, we get 3 tests instead of an average of 4.5. For N==16, we have 4 tests instead of 8.5. And for N==256, 8 instead of 128.5. Quite an improvement.
+
+Now, how can we manage that ? Consider the switch argument (an integer). Testing bit 0 gives two cases. In each one, testing bit 1 gives two different cases, etc. While we end up with a total of N-1 tests, only [i]log N[/i] are performed for each execution of the whole statement. To help writing such a code, I wrote, a long time ago, a "C" program, "build_switch", that builds the skeleton of the statement. You just have then to fill up the appropriate cases. Here is an example of its execution:
+[code](Cmd&0x4)?((Cmd&0x2)?((Cmd&0x1)?(
+        //===7===//
+        Err=7;
+        //===7===//
+    ):(
+        //===6===//
+        Err=6;
+        //===6===//
+    );):((Cmd&0x1)?(
+        //===5===//
+        Err=5;
+        //===5===//
+    ):(
+        //===4===//
+        Err=4;
+        //===4===//
+    ););):((Cmd&0x2)?((Cmd&0x1)?(
+        //===3===//
+        Err=3;
+        //===3===//
+    ):(
+        //===2===//
+        Err=2;
+        //===2===//
+    );):((Cmd&0x1)?(
+        //===1===//
+        Err=1;
+        //===1===//
+    ):(
+        //===0===//
+        Err=0;
+        //===0===//
+    );););
+[/code]
+In this example, [b]Cmd[/b] is the name of the variable to test (For an expression, first assign its value to a variable: [b]Cmd=...;[/b] to avoid calculating it multiple times). Here, N is 8, so cases 0 to 7 are tested. The "build_switch" program lets you change most of what is generated:
+[code]$ build_switch -h
+build_switch: Build a "N" level selector for JSFX, like a C switch,
+    with continuous integer values from 0 to 2^N-1.
+Syntax:
+    build_switch [-h] [-e Evar] [-v Vvar] [-b Vsize] [-i Inc] [-d Ind] [-s Sep]
+where:
+    Vvar is the tested variable, with values from 0 to 2^N-1 (default: "Cmd")
+    Evar is an "error" variable, and is set to the tested variable as a default action. (default: "Err")
+    Vsize is the log of the number of cases to test : use 3 for 8 cases, 5 for 32 cases, etc. (default: 3)
+    Inc is the global increment (in spaces) for the whole construct.
+    Ind is the additionnal increment (in spaces) for each case.
+    Sep is the separator string, default "//===%i===//"
+$ build_switch -v expr -b 2 -s "//---->%i" -e kase
+    (expr&0x2)?((expr&0x1)?(
+        //---->3
+        kase=3;
+        //---->3
+    ):(
+        //---->2
+        kase=2;
+        //---->2
+    );):((expr&0x1)?(
+        //---->1
+        kase=1;
+        //---->1
+    ):(
+        //---->0
+        kase=0;
+        //---->0
+    ););
+$ [/code]
+When the skeleton is generated, you just have to copy it in your JSFX source, and replace the [b]Err=n;[/b] statements by your appropriate code. Note that you are not limited to a power of 2, or you don't necessary have to use a continuous range of integers. For example, if the cases that interest you are in (2, 3, 5, 6, 7, 10, 11, 13, 14, 15), and you need a "default" statement, it is still efficient to use this construct. Write something like:
+[code]
+Err = Cmd = the value to test
+((Cmd >= 2) && (Cmd <= 15)) ? (
+    Err = vOK = 0x294DA3B26901;  // choose an unlikely to happen value
+    (Cmd&0x8)?((Cmd&0x4)?((Cmd&0x2)?((Cmd&0x1)?(
+        //===15===//
+            here is the case "15"
+        //===15===//
+    ):(
+        //===14===//
+            here is the case "14"
+        //===14===//
+    );):((Cmd&0x1)?(
+        //===13===//
+            here is the case "13"
+        //===13===//
+    ):(
+        //===12===//
+        Err=12;  // leave like it is
+        //===12===//
+    ););):((Cmd&0x2)?((Cmd&0x1)?(
+        //===11===//
+            here is the case "11"
+        //===11===//
+    ):(
+        //===10===//
+            here is the case "10"
+        //===10===//
+    );):((Cmd&0x1)?(
+        //===9===//
+        Err=9;  // leave like it is
+        //===9===//
+    ):(
+        //===8===//
+        Err=8;  // leave like it is
+        //===8===//
+    );););):((Cmd&0x4)?((Cmd&0x2)?((Cmd&0x1)?(
+        //===7===//
+             here is the case "7"
+        //===7===//
+    ):(
+        //===6===//
+             here is the case "6"
+        //===6===//
+    );):((Cmd&0x1)?(
+        //===5===//
+             here is the case "5"
+        //===5===//
+    ):(
+        //===4===//
+        Err=4;  // leave like it is
+        //===4===//
+    ););):((Cmd&0x2)?((Cmd&0x1)?(
+        //===3===//
+             here is the case "3"
+        //===3===//
+    ):(
+        //===2===//
+             here is the case "2"
+        //===2===//
+    );):((Cmd&0x1)?(
+        //===1===//
+        Err=1;  // leave like it is
+        //===1===//
+    ):(
+        //===0===//
+        Err=0;  // leave like it is
+        //===0===//
+    ););););
+);
+(Err != vOK) ? (
+    here is the default case
+);
+[/code]
+Finally, if you have more than one construct of this type in your program, use different separator strings with an option like [b]-s "//...%i...//"[/b]. For example, I know that when I look for the code associated to my "parameter" number 140 (I have more than 400 of them), I search "+++140+++", for the code of "generator" 57, I search ":::57:::", etc.
+
+ All the best !
+
+J. Jack.
+
+Get text and functions in my [url=https://github.com/jack461/JackUtilities]JackUtilities github[/url].
+
+[b]TL;DR summary:[/b] a kind of switch like construct. 

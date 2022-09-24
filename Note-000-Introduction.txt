@@ -1,6 +1,19 @@
+[b]Advanced JSFX Programming Notes[/b]
+
+[b]Table of contents -- updated 2022/09/23[/b]
+[list]
+[*][url=https://forum.cockos.com/showthread.php?p=2597176#post2597176]About declarations[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]A static memory allocator[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2597178#post2597178]Numbers Properties[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2597398#post2597398]About strings[/url]
+[*]...
+[/list]
+
 [b]Presentation[/b]
 
 While developping a large project in JSFX, I took a lot of notes on paper about the various aspects of what I was doing, and how I did solve a few problems. As a former teacher in computer science, it appeared to me that, with much editing, these informations could be pertinent to others users of JSFX. It's not a course, it's certainely bad organized, and it's still a work in progress. But maybe, it could be useful for you, and also, when I'm wrong, maybe you can correct me.
+
+However, I'll try to cover original subjects, and I'll put here the various parts as links to messages in the thread. Let me know if you need more detailed informations for each aspect!
 
 [b]What's wrong with JSFX ?[/b]
 
@@ -33,15 +46,11 @@ The things I intend to discuss are related to "advanced" JSFX programming, like 
 [*][url=https://www.youtube.com/c/leafac/videos]The various videos by Leandro Facchinetti[/url]
 [/list]
 
-However, I'll try to cover original subjects, and I'll put here the various parts as links to messages in the thread. Let me know if you need more detailed informations for each aspect!
+[b]Thanks to the readers![/b]
 
-[b]Table of contents[/b]
-[list]
-[*]About declarations
-[*]A static memory allocator
-[*]Numbers Properties
-[*]...
-[/list]
+Readers are helping a lot in making the informations in this thread as accurate as possible, and I'll try to take in account any feedback and corrections I get.
+
+So, many thanks to [b]Justin[/b], [b]mschnell[/b], [b]Tale[/b]... And all the other to come!
 
 All the best !
 

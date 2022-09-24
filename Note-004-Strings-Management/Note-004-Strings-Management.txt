@@ -35,7 +35,7 @@ The strings functions refer to strings by their internal number. A function like
 
 So the actual limitation I found is that I can't dynamically allocate strings at run-time. Hence the approach proposed here.
 
-[n]A dynamic strings allocation[/n]
+[b]A dynamic strings allocation[/b]
 
 In some cases, not very often, you may need many strings, a lot of them, allocate them dynamically, free them, etc. As an example, if you want to dynamically manage menus in the graphic section, you may need to explode a string into an array of substring, or implode a set of strings. I will describe here the way I manage dynamic strings allocation.
 
@@ -107,7 +107,7 @@ StrFree(s1); StrFree(s2);
 [/code]
 The code uses a single array of size [i]N[/i], where [i]N[/i] is the number of available strings. Here, the desallocation of a string is in [i]O(1)[/i], but the allocation is in [i]O(N)[/i] (in some cases, you have to scan the whole array to find an available string).
 
-However, we can provide a [i]O(1)[/i] allocation, using an additionnal array to keep in a stack the identification of free strings. We push all the identifications of available strings in the stack. We pull the top of the stack to get a free string, and push in the stack the identifiction of a string you want to free. In the new version of the code, we also need to keep for each string the boolean information that it is allocated or not. This helps making sure that we don't free twice the same string.
+However, we can provide a [i]O(1)[/i] allocation, using an additionnal array to keep in a stack the identification of free strings. We push all the identifications of available strings in the stack. We pull the top of the stack to get a free string, and push in the stack the identification of a string you want to free. In the new version of the code, we also need to keep for each string the boolean information that it is allocated or not. This helps making sure that we don't free twice the same string.
 [code]function StrInit(first, last)
 local (i)
 (
@@ -141,7 +141,7 @@ local (n)
     );
 );
 [/code]
-This new version has both "allocate" and "free" functions in O(1), which is a good thing, since JSFX are supposed to work in real time. In both versions, StrAlloc() returns 0 if there is no more string to allocate, but this won't break a program which use this function and don't test the result, since 0 is also a valid string identification. Note also that we use it the static memory allocation, described in [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]a previous note[/url], so you have to include this library first.
+This new version has both "allocate" and "free" functions in O(1), which is a good thing, since JSFX are supposed to work in real time. In both versions, StrAlloc() returns 0 if there is no more string to allocate, but this won't break a program which use this function and don't test the result, since 0 is also a valid string identification. Note also that we use the static memory allocation, described in [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]a previous note[/url], so you have to include this library first.
 
 As would say our excellent Kenny Gioia, "Hope you've learned something, hope you can use it !".
 
