@@ -3,7 +3,8 @@ desc:JJ-Test-JSFX-04b
 note: strings test 3
 
 import Mem-Static.jsfx-inc
-import Str-Set.jsfx-inc
+// import Str-Set.jsfx-inc
+import string-list-10000.jsfx-inc
 import Str-Mgr2.jsfx-inc
 
 @init
