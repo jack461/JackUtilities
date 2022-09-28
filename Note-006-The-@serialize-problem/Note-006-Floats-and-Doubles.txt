@@ -1,0 +1,69 @@
+[b]Floats, Doubles, and the @serialize problem[/b]
+
+While the JSFX language deals only with double precision floats (64 bits), the single precision float representation (32 bits) is used to save any JSFX preset in the [b]@serialize[/b] section. This includes the sliders values, and any variable or memory area you will save and load in this section. This implies that any fine tuned value that you save in a preset comes back slightly incorrect when you load it. This is not a real problem most of the time, but it becomes one when you use "large" integers (in the [2^24 2^53] range, or precise real values, that fit in a 64 bit double, but not in a 32 bit float.
+
+Why was such a decision taken in the first place? I think the reason was that presets would be twice smaller, and that a little loss in precision wouldn't harm much. We have now much larger disks than 15 years ago, and we are always looking for better and more accurate results. I have now settings that don't sound the same once saved and reloaded. I use "integer" values that are saved and loaded incorrectly, breaking my code. Of course, I cut some values in pieces before saving, reconstitute them on loading, etc. Unfortunately, I have no real generic workaround for JSFX code. 
+
+First, let's establish some properties of these data types:
+[list]
+[*]a float uses 4 bytes for its representation. The float range is ±3.4E-38 and ±3.4E38, the precision is about 7 decimal digits.
+[*]a double uses 8 bytes for its representation. The double range is ±1.7E-308 and ±1.7E308, the precision is about 15 decimal digits.
+[*]a float can represent exactly a 24 bit integer.
+[*]a double can represent exactly a 53 bit integer.
+[*]a double can represent exactly any float.
+[*]the relative loss of precision from double to float is about 5.96x10^-8
+[/list]
+
+Where really is the problem ? I have yet to imagine a case where a value of 1E300 is that useful in audio handling, but that could happen.
+
+The case of integers is more a problem for me. I use integers in the 2^48 range daily, and saving arrays of such integers asks for a lot of contortions.
+
+Finally, the loss of precision in "real" numbers is a greater problem, because it is a real problem to devise an algorithm that gives you a way to obtain a precision of 15 digits with floats.
+
+As I already said, I have no general workaround for these problems, but I have some suggestions for the cockos team.
+
+[b]Suggestion 1[/b]
+Provide a new system variable, [b]double_precision_serialize[/b]. The default value is zero. In this case, nothing is changed in the behaviour of loading/saving presets. When this variable is set to 1, there is no conversion to float, and the saving is performed in double precision (yes, doubling the size of the preset). This doesn't need to break existing JSFX code. In the representation of a saved preset, you have something like:
+[code][General]
+NbPresets=1
+
+[Preset0]
+Data=323820.....etc...
+Len=5270
+Name=P1
+[/code]
+You "just" have to add, along [b]Len[/b] and [b]Name[/b], a new property, like [b]Rep=1[/b], that would indicate that the representation uses the double precision. This would be completely transparent to the plug-ins when loading a preset, and you could even mix presets saved in simple or double precision in the same file.
+
+[b]Suggestion 2[/b]
+Let the plug-in manage itself the individual format of each saved value, but provide functions that let it do so. As examples, I'll suggest:
+[list]
+[*][b]field_get(dbl,pos,len)[/b], to extract a bit-field from a double, where "dbl" is any double value, "pos" is a position in the internal representation of the double, i.e. an integer in [0, 63], and "len" the length of the bit_field, i.e. an integer in [1, 64]. The result is a double, representing the value of the extracted bit field as a positive integer.
+[*][b]field_set(dbl,pos,len, val)[/b], to change the value of a specific bit-field of the "dbl" parameter. "val" is the new value of the bit-field, in the form of an integer. The result is the value of "dbl", with the specific bit-field modified.
+[*][b]float(dbl)[/b], to return the value of "dbl", converted to a float. 
+[/list]
+The 64 bit-field corresponding to a double can be, in "C", easily obtained from the field "uli" (nothing to do with Mr Uli Behringer) of the union:
+[code]union {
+    double dbl;
+    unsigned long int uli;
+} uni;[/code]
+I precise that the field functions operate directly on the 64 bit representation of the double, and that, for example, field_get(dbl,0,1) gives you the sign of "dbl", field_get(dbl,1,11) gives you its biaised exponent, and field_get(dbl,12,52) returns is truncated mantissa.
+So, the field functions lets you, for example, use field_get(dbl,0,16), field_get(dbl,16,16), field_get(dbl,32,16) and field_get(dbl,48,16) to extract 16 bit values, each value fitting easily in a float, and reconstitue perfectly the double with these values.
+Finaly, the [b]float[/b] operation can be implemented in "C" by the expression [b](double)(float)dbl[/b]. Is it useful?, will you ask. Yes, it is.  With it, you can convert a double in two floats:
+[code]flt1=float(dbl);
+flt2=dbl-flt1;[/code]
+Save, as floats, flt1 and flt2, then reconstitute a double, after loading back the preset:
+[code]res=flt1+flt2;[/code]
+With this, the relative loss of precision between "dbl" and "res" is only 1.78x10^-15, almost perfect.
+
+[b]Suggestion 3[/b]
+Allow file functions to [i]write[/i] data in external files, possibly allowing only, for security reasons, the current project folder. In most cases, being able to write chars, using a function like [b]file_write_string(handle,str)[/b] would be enough. [b]file_open(file_name, type)[/b] allowing a second parameter, to indicate how the the file is to be opened/created, à la Unix, would be perfect. This addition would solve much more problems than just the "@serialize", but could be used inside the @serialize section to write specific values to external files, or read from these files, in a ways which is transparent to the user.
+
+[b]So...[/b]
+So there are solutions to the "@serialize" problem. "Suggestion 1" is certainely the simpler solution from the user's point of view. The implementation of "float" and the fields functions is quite simple, and would provide an interesting addition to the language. Adding file write would be a real bonus to any JSFX programmer...
+
+
+All the best !
+
+J. Jack.
+
+[b]TL;DR summary:[/b] about numbers and serialize...

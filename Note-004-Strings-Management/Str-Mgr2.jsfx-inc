@@ -13,6 +13,7 @@ local (i)
     StrStack = MemAlloc(StrCount, 'strs', 0);
     i=0; loop(StrCount, StrStack[i] = i+first; i+=1;);
     StrUptr = StrCount - 1;
+    StrDefault = #StrDefault; // provide a default string
 );
 
 function StrAlloc(val)
@@ -23,7 +24,7 @@ local (s, z)
         StrUse[z] = 1;
         StrUptr -= 1;
     ) : (
-        s = 0;
+        s = StrDefault; // use the strdefault
     );
     val == 0 ? val = "";
     strcpy(s, val);

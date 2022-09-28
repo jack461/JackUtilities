@@ -6,6 +6,7 @@
 [*][url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]A static memory allocator[/url]
 [*][url=https://forum.cockos.com/showthread.php?p=2597178#post2597178]Numbers Properties[/url]
 [*][url=https://forum.cockos.com/showthread.php?p=2597398#post2597398]About strings[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2598945#post2598945]A switch-like construct[/url]
 [*]...
 [/list]
 
