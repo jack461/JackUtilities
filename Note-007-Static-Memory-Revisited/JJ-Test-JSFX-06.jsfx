@@ -1,0 +1,50 @@
+desc:JJ-Test-JSFX-06
+
+
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import ui-lib.jsfx-inc
+
+@init
+
+
+mSL_StM_Init(8);
+mSL_StM_GlobFlgs = mSL_StM_FlSigErr;
+chk1 = mSL_StM_Check(); // check the (empty) memory
+
+
+add6 = mSL_StM_BlockStart('ABCD');
+f000 = add6;
+f001 = add6[-1];
+f002 = add6[-2];
+f003 = mSL_StM_Free;
+f004 = mSL_StM_Top;
+f005 = mSL_StM_Free[0];
+f006 = mSL_StM_Free[-1];
+f007 = mSL_StM_Free[-2];
+
+// use 2 words of memory
+f008 = mSL_StM_BlockEnd(add6+2);
+f009 = add6[-1];
+f010 = add6[-2];
+f011 = mSL_StM_Free;
+f012 = mSL_StM_Top;
+f013 = mSL_StM_Top[0];
+f014 = mSL_StM_Top[-1];
+f016 = mSL_StM_Free[0];
+f017 = mSL_StM_Free[-1];
+f018 = mSL_StM_Free[-2];
+
+// Use UI-Lib
+add8 = mSL_StM_BlockStart('ULib');
+freemem = ui_setup(add8);
+mSL_StM_BlockEnd(freemem);
+add9 = mSL_StM_Free;
+
+add3 =  mSL_StM_Alloc(12, 'data', mSL_StM_FlFill);
+chk2 = mSL_StM_Check();  // check all the blocks
+
+@gfx
+ui_start();
+ui_text("Hello, world!");
+
+

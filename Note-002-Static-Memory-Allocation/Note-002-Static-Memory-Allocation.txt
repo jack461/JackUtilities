@@ -33,27 +33,33 @@ While this organization implies an overhead of four words for each allocated blo
 
 The defined operations are the following:
 [list]
-[*][b]MemInit(address)[/b]: define the memory location of the first word to be allocated for the memory allocation. [b]MemInit()[/b] starts allocating at address 0.
-[*][b]MemAlloc(size,type,flags)[/b]: allocate a new memory block, of size "size", of type "type", according to a set of "flags". The parameter "flags" is an additive combination of the following values:
+[*][b]mSL_StM_Init(address)[/b]: define the memory location of the first word to be allocated for the memory allocation. [b]mSL_StM_Init()[/b] starts allocating at address 0.
+[*][b]mSL_StM_Alloc(size,type,flags)[/b]: allocate a new memory block, of size "size", of type "type", according to a set of "flags". The parameter "flags" is an additive combination of the following values:
 [list]
-[*][b]MemFlClear[/b]: clear block contents once allocated
-[*][b]MemFlAlign[/b]: allocate inside a 64k boundary (useful for arrays used with functions like [b]mdct[/b], [b]fft[/b], etc.)
+[*][b]mSL_StM_FlClear[/b]: clear block contents once allocated
+[*][b]mSL_StM_FlAlign[/b]: allocate inside a 64k boundary (useful for arrays used with functions like [b]mdct[/b], [b]fft[/b], etc.)
 [/list] 
-[*][b]MemCheck(address)[/b]: check the validity of the memory block at "address". [b]MemCheck()[/b] checks the whole static memory.
+[*][b]mSL_StM_Check(address)[/b]: check the validity of the memory block at "address". [b]mSL_StM_Check()[/b] checks the whole static memory.
 [/list]
-Note that the result of an allocation is the address of "word0", so the algorithms which request memory do not have to worry about the header and the trailer. But, if "add" is the address of a memory block a program gets from a MemAlloc call, the program can use add[-1] to get the size of the block, and add[-2] to get its type. We can consider that such arrays are now effective "first class citizen" according to our criteria, since, just using their reference (the memory address of the first word), we can know their type and their size.
+Note that the result of an allocation is the address of "word0", so the algorithms which request memory do not have to worry about the header and the trailer. But, if "add" is the address of a memory block a program gets from a mSL_StM_Alloc call, the program can use add[-1] to get the size of the block, and add[-2] to get its type. We can consider that such arrays are now effective "first class citizen" according to our criteria, since, just using their reference (the memory address of the first word), we can know their type and their size.
+
+[b]Using the allocator[/b]
+
+In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create a new folder, that you will name "JackUtilities". Get the file "mSL_StM_Memory.jsfx-inc" from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-002-Static-Memory-Allocation]github Note-002[/url], and install it in "JackUtilities". 
+
+Import the file in your JSFX plug-in with "import JackUtilities/mSL_StM_Memory.jsfx-inc", and in the "@init" section, initialize the manager by "mSL_StM_Init()" to start the allocation at the first word of the memory, or by "mSL_StM_Init(100)" to start at address 100, etc.
 
 [b]Debugging[/b]
 
-This organization has been adopted to simplify the debugging of new codes. Most errors linked to arrays involve writing in memory before the start of the array, or after its last element. The header and the trailer help checking the correctness of a block, or crawling the whole chain of allocated blocks. The redondency between the header and the trailer makes it easy to discover programming errors.
+This organization has been adopted to simplify the debugging of new codes. Most errors linked to arrays involve writing in memory before the start of the array, or after its last element. The control words help checking the correctness of a block, or crawling the whole chain of allocated blocks. The redondency between the header and the trailer makes it easy to discover programming errors.
 
-Also, some additional flags (third parameter of a MemAlloc call) may help debugging:
+Also, some additional flags (third parameter of a mSL_StM_Alloc call) may help debugging:
 [list]
-[*][b]MemFlFill[/b]: fill the new block with random garbage. This helps detecting an algorithm implicitely relying on the block being set to zero after allocation.
-[*][b]MemFlSigErr[/b]: signal errors to the user, using the "#dbg_desc" feature.
-[*][b]MemFlCheck[/b]: check the whole memory before allocation
+[*][b]mSL_StM_FlFill[/b]: fill the new block with random garbage. This helps detecting an algorithm implicitely relying on the block being set to zero after allocation.
+[*][b]mSL_StM_FlSigErr[/b]: signal errors to the user, using the "#dbg_desc" feature.
+[*][b]mSL_StM_FlCheck[/b]: check the whole memory before allocation
 [/list] 
-You can also set the [b]MemGlobFlgs[/b] variable to a combination of some "MemFlxxxx" flags, and it will be used in the MemAlloc function. For exemple, set [b]MemGlobFlgs=MemFlFill+MemFlSigErr+MemFlCheck;[/b] during the tests, then [b]MemGlobFlgs=0;[/b] when all bugs have been eliminated :).
+You can also set the [b]mSL_StM_GlobFlgs[/b] variable to a combination of some "mSL_StM_Flxxxx" flags, and it will be used in the mSL_StM_Alloc function. For exemple, set [b]mSL_StM_GlobFlgs=mSL_StM_FlFill+mSL_StM_FlSigErr+mSL_StM_FlCheck;[/b] during the tests, then [b]mSL_StM_GlobFlgs=0;[/b] when all bugs have been eliminated :).
 
 Another error involves using an undefined array reference (typing for exemple "talbe" instead of "table"). In this case, the program is likely to write data at address 0 or followings. Then again, starting the allocation at address 0 can help discovering such cases. Another approach is to put in the first words of the memory specific values, and check from time to time that they are not modified. An appropriate place to do so is every second, in the "@block" or the "@gfx" sections. This is a combination of both tests:
 [code]@init
@@ -63,7 +69,7 @@ MemInit(8);
 blockStartT=time();
 (blockStartT != blockPrevT) ? (
     blockPrevT = blockStartT;
-    (MemCheck() || (0[0] != wordZeroV)) ? (
+    (mSL_StM_Check() || (0[0] != wordZeroV)) ? (
         ... // do something
     );
 );[/code]
@@ -72,6 +78,6 @@ All the best !
 
 J. Jack.
 
-Get text and code in my [url=https://github.com/jack461/JackUtilities/Note-002-Static-Memory-Allocation]JackUtilities github Note-002[/url].
+Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-002-Static-Memory-Allocation]JackUtilities github Note-002[/url].
 
 [b]TL;DR summary:[/b] a description of a quite basic, but possibily useful, static memory allocator.

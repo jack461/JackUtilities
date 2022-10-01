@@ -1,0 +1,146 @@
+desc:JJ-Test-JSFX-06b
+
+import malloc.jsfx-inc
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import ui-lib.jsfx-inc
+
+@init
+
+
+M = 0;
+mSL_StM_Init(3);
+mSL_StM_GlobFlgs = mSL_StM_FlSigErr;
+chk1 = mSL_StM_Check(); // check the (empty) memory
+
+add2_ =  mSL_StM_Alloc(2, 'data', mSL_StM_FlFill);
+
+// Use UI-Lib
+add8_ = mSL_StM_BlockStart('ULib');
+freemem = ui_setup(add8_);
+mSL_StM_BlockEnd(freemem);
+add9_ = mSL_StM_Free;
+
+add3_ =  mSL_StM_Alloc(12, 'data', mSL_StM_FlFill);
+chk2 = mSL_StM_Check();  // check all the blocks
+
+// Stop static allocation provide dynamic allocation
+free = mSL_StM_BlockStart('Tale');
+// simulate a first allocated bloc
+M[0] = free;
+M[1] = M[2] = free - 3;
+
+A0 = M[0];
+A1 = M[1];
+A2 = M[2];
+A3 = M[3];
+A4 = M[4];
+A5 = M[5];
+A6 = M[6];
+A7 = M[7];
+A8 = M[8];
+A9 = M[9];
+
+
+/*
+m00 = 0[];
+m01 = 1[];
+m02 = 2[];
+m03 = 3[];
+m04 = 4[];
+m05 = 5[];
+m06 = 6[];
+m07 = 7[];
+m08 = 8[];
+m09 = 9[];
+m10 = 10[];
+m11 = 11[];
+m12 = 12[];
+m13 = 13[];
+m14 = 14[];
+m15 = 15[];
+
+add3 = malloc(1);
+
+add3[0] = 3333;
+*/
+
+M = free;
+
+add6 = malloc(6);
+add6[0] = 600;
+add6[1] = 601;
+add6[2] = 602;
+add6[3] = 603;
+add6[4] = 604;
+add6[5] = 605;
+
+add3 = malloc(3);
+add3[0] = 3345;
+add3[1] = 3456;
+add3[2] = 3567;
+
+add1 = malloc(1);
+add1[0] = 1111;
+
+
+add4 = malloc(4);
+add4[0] = 400;
+add4[1] = 401;
+add4[2] = 402;
+add4[3] = 403;
+
+//free(add3);
+//free(add6);
+//free(add1);
+
+add2 = malloc(2);
+add2[0] = 2222;
+add2[1] = 2222;
+
+//free(add4);
+//free(add2);
+
+add12 = malloc(12);
+
+m00 = M[0];
+m01 = M[1];
+m02 = M[2];
+m03 = M[3];
+m04 = M[4];
+m05 = M[5];
+m06 = M[6];
+m07 = M[7];
+m08 = M[8];
+m09 = M[9];
+m10 = M[10];
+m11 = M[11];
+m12 = M[12];
+m13 = M[13];
+m14 = M[14];
+m15 = M[15];
+m16 = M[16];
+m17 = M[17];
+m18 = M[18];
+m19 = M[19];
+m20 = M[20];
+m21 = M[21];
+m22 = M[22];
+m23 = M[23];
+m24 = M[24];
+m25 = M[25];
+m26 = M[26];
+m27 = M[27];
+m28 = M[28];
+m29 = M[29];
+m30 = M[30];
+m31 = M[31];
+m32 = M[32];
+
+
+
+/* 
+*/
+@gfx
+ui_start();
+ui_text("Using ui-lib, by Geraint Luff, and malloc, by Theo Niessen!");
+

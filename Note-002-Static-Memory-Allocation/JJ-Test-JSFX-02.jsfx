@@ -1,32 +1,31 @@
 desc:JJ-Test-JSFX-02
 
-
-import Mem-Static.jsfx-inc
+import JackUtilities/mSL_StM_Memory.jsfx-inc
 
 @init
 
-function malloc(size) ( MemAlloc(size, 'data', 0); );
-MemInit(8);
-MemGlobFlgs = MemFlSigErr;
-chk1 = MemCheck(); // check the (empty) memory
+function malloc(size) ( mSL_StM_Alloc(size, 'data', 0); );
+mSL_StM_Init(8);
+mSL_StM_GlobFlgs = mSL_StM_FlSigErr;
+chk1 = mSL_StM_Check(); // check the (empty) memory
 
 add1 =  malloc(3);
-add1z = MemFreePt;
+add1z = mSL_StM_FreePt;
 add2 =  malloc(0);
-add2z = MemFreePt;
-add3 =  MemAlloc(12, 'data', MemFlFill);
-add3z = MemFreePt;
-add4 =  MemAlloc(47725, 'xyzt', MemFlAlign);
-add4z = MemFreePt;
+add2z = mSL_StM_FreePt;
+add3 =  mSL_StM_Alloc(12, 'data', mSL_StM_FlFill);
+add3z = mSL_StM_FreePt;
+add4 =  mSL_StM_Alloc(47725, 'xyzt', mSL_StM_FlAlign);
+add4z = mSL_StM_FreePt;
 
-add5 =  MemAlloc(32768, 'type', MemFlAlign);
-add5z = MemFreePt;
-chk2 = MemCheck();  // check all the blocks
+add5 =  mSL_StM_Alloc(32768, 'type', mSL_StM_FlAlign);
+add5z = mSL_StM_FreePt;
+chk2 = mSL_StM_Check();  // check all the blocks
 
-chk3 = MemCheck(add5); // check a specific block
+chk3 = mSL_StM_Check(add5); // check a specific block
 
 
-chk4 = MemCheck(add3z); // not a block
+chk4 = mSL_StM_Check(add3z); // not a block => signal error 110 in the "block" at address 36
 
 // Look at the contents of block 3
 dat0 = add3[-2];
@@ -50,5 +49,5 @@ datH = add3[15];
 
 
 //
-MemErr = 0;
-add6 = MemAlloc(8000000, 'data', 0);
+mSL_StM_Err = 0;
+add6 = mSL_StM_Alloc(8000000, 'data', 0);

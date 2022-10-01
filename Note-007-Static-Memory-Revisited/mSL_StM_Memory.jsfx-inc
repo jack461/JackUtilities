@@ -1,0 +1,249 @@
+/*
+   A Static Memory allocation  -- V2 -- Jack641
+        
+
+   This library can be used to allocate memory blocks.
+
+   A block has the following structure :
+
+        [  type  ]
+        [  size  ]
+  --->  [  ....  ]     address of the block, and its first element
+           ....
+        [  ....  ]     last element of the block
+        [  size  ]
+        [ ~ type ]     actually: type ~ 0x7FFFFFFF;
+
+
+    Usage:
+
+    import mSL_StM_Memory.jsfx-inc
+
+    @init
+    mSL_StM_Init();
+       // initialize memory management, starting allocation at "0"
+    mSL_StM_Init(x);
+       // initialize, starting allocation at address "x"
+
+    mSL_StM_Alloc(size, type, flags);
+       // allocate a block of size "size" words,
+       // with type "type" (use: 'data', 'blok', etc.)
+       // and flags "flags" -- a sum of :
+          mSL_StM_FlClear = 1; // clear block contents once allocated
+          mSL_StM_FlAlign = 2; // allocate inside a 64k boundary
+          mSL_StM_FlCheck = 4; // check memory before allocation
+          mSL_StM_FlSigErr= 8; // stop process in case of error found
+
+    mSL_StM_Check(); // verify the memory
+
+
+*/
+
+@init
+
+function mSL_StM_Init(start)
+global(mSL_StM_Start, mSL_StM_Low, mSL_StM_High, mSL_StM_Key_min, mSL_StM_Key_max, mSL_StM_Zone, mSL_StM_Loc, mSL_StM_MaxRq, mSL_StM_FreePt, 
+    mSL_StM_BlockType, mSL_StM_BlockSize, mSL_StM_Top, mSL_StM_Err, mSL_StM_ErrLoc, mSL_StM_ErrAux, mSL_StM_GlobFlgs, mSL_StM_Dangling, mSL_StM_TMask,
+    mSL_StM_FlClear, mSL_StM_FlAlign, mSL_StM_FlCheck, mSL_StM_FlSigErr, mSL_StM_FlFill)
+(
+    mSL_StM_Start = 0|max(0, start); // where to start from
+    mSL_StM_Low =  0x7FDA04C1; // Low memory marker :  2144994497
+    mSL_StM_High = 0x7FAD03C2; // high memory marker : 2142045122
+    mSL_StM_Key_min = 0x21212121; // The minim. key for a memory object:  555819297
+    mSL_StM_Key_max = 0x7E7E7E7E; // the max. key for a memory object:   2122219134
+    mSL_StM_Zone = 0x7FFFFF0000; // get the zone ID of a mem address
+    mSL_StM_Loc = 0xFFFF; // location inside a zone
+    mSL_StM_MaxRq = 0x7FFFFFFF; // max. request for an malloc
+    mSL_StM_TMask = 0x7FFFFFFF; // tilde mask
+    mSL_StM_FreePt = mSL_StM_Start + 1; // The allocation pointer
+    mSL_StM_FreePt[-1] = mSL_StM_Low;
+    mSL_StM_FreePt[0] = mSL_StM_High;
+    mSL_StM_BlockType = -2;
+    mSL_StM_BlockSize = -1;
+    mSL_StM_Top = __memtop() - 4;
+    mSL_StM_FlClear = 1; // clear block contents once allocated
+    mSL_StM_FlAlign = 2; // allocate inside a 64k boundary
+    mSL_StM_FlCheck = 4; // check memory before allocation
+    mSL_StM_FlSigErr= 8; // stop process in case of error found
+    mSL_StM_FlFill = 16; // fill new block with random garbage
+    mSL_StM_GlobFlgs = 0;  // global flags
+    mSL_StM_Dangling = 0;
+
+    mSL_StM_Err = 0;
+    mSL_StM_ErrLoc = 0;
+);
+
+function mSL_StM_Check(par)
+global(mSL_StM_Start, mSL_StM_Low, mSL_StM_High, mSL_StM_Key_min, mSL_StM_Key_max, mSL_StM_Zone, mSL_StM_Loc, mSL_StM_MaxRq, mSL_StM_FreePt, 
+    mSL_StM_BlockType, mSL_StM_BlockSize, mSL_StM_Top, mSL_StM_Err, mSL_StM_ErrLoc, mSL_StM_ErrAux, mSL_StM_GlobFlgs, mSL_StM_Dangling, mSL_StM_TMask,
+    mSL_StM_FlClear, mSL_StM_FlAlign, mSL_StM_FlCheck, mSL_StM_FlSigErr, mSL_StM_FlFill)
+global(#dbg_desc)
+local (pt, t, s)
+(
+    (mSL_StM_Err == 0) ? (
+        (par == 0) ? (
+            pt = mSL_StM_Start;
+            (pt[0] != mSL_StM_Low) ? (
+                mSL_StM_Err = 101; // low terminal missing
+                mSL_StM_ErrLoc = pt;
+            ) : (
+                pt += 1;
+                (pt[0] == mSL_StM_High) ? pt = 0;
+            );
+    
+            while ((mSL_StM_Err == 0) && (pt > 0)) (
+                t = pt[0];
+                ((t < mSL_StM_Key_min) || (t > mSL_StM_Key_max)) ? (
+                    mSL_StM_Err = 110; // invalid type
+                    mSL_StM_ErrLoc = pt+2;
+                    mSL_StM_ErrAux = t;
+                ) :
+                (((s = pt[1]) < 0) || (s > mSL_StM_MaxRq)) ? (
+                    mSL_StM_Err = 112; // invalid length
+                    mSL_StM_ErrLoc = pt+2;
+                    mSL_StM_ErrAux = s;
+                ) :
+                (s != pt[s+2]) ? (
+                    mSL_StM_Err = 113; // non matching length
+                    mSL_StM_ErrLoc = pt+2;
+                    mSL_StM_ErrAux = s;
+                ) :
+                (t != (pt[s+3] ~ mSL_StM_TMask)) ? (
+                    mSL_StM_Err = 114; // non matching type
+                    mSL_StM_ErrLoc = pt+2;
+                    mSL_StM_ErrAux = t;
+                ) : (
+                    pt = pt + s + 4;
+                    (pt[0] == mSL_StM_High) ? pt = 0;
+                );
+            );
+        ) : (
+            pt = par - 2;
+            t = pt[0];
+            ((t < mSL_StM_Key_min) || (t > mSL_StM_Key_max)) ? (
+                mSL_StM_Err = 110; // invalid type
+                mSL_StM_ErrLoc = pt+2;
+                mSL_StM_ErrAux = t;
+            ) :
+            (((s = pt[1]) < 0) || (s > mSL_StM_MaxRq)) ? (
+                mSL_StM_Err = 112; // invalid length
+                mSL_StM_ErrLoc = pt+2;
+                mSL_StM_ErrAux = s;
+            ) :
+            (s != pt[s+2]) ? (
+                mSL_StM_Err = 113; // non matching length
+                mSL_StM_ErrLoc = pt+2;
+                mSL_StM_ErrAux = s;
+            ) :
+            (t != (pt[s+3] ~ mSL_StM_TMask)) ? (
+                mSL_StM_Err = 114; // non matching type
+                mSL_StM_ErrLoc = pt+2;
+                mSL_StM_ErrAux = t;
+            );
+        );
+    );
+    (mSL_StM_Err && (mSL_StM_GlobFlgs & mSL_StM_FlSigErr)) ? (
+        s = #; sprintf(s, "MemError %d at %d", mSL_StM_Err, mSL_StM_ErrLoc);
+        strcpy(#dbg_desc, s);
+    );
+    mSL_StM_Err;
+);
+
+function mSL_StM_Alloc(size, type, flags)
+global(mSL_StM_Start, mSL_StM_Low, mSL_StM_High, mSL_StM_Key_min, mSL_StM_Key_max, mSL_StM_Zone, mSL_StM_Loc, mSL_StM_MaxRq, mSL_StM_FreePt, 
+    mSL_StM_BlockType, mSL_StM_BlockSize, mSL_StM_Top, mSL_StM_Err, mSL_StM_ErrLoc, mSL_StM_ErrAux, mSL_StM_GlobFlgs, mSL_StM_Dangling, mSL_StM_TMask,
+    mSL_StM_FlClear, mSL_StM_FlAlign, mSL_StM_FlCheck, mSL_StM_FlSigErr, mSL_StM_FlFill)
+global(#dbg_desc)
+local (add, fill, s)
+(
+    add = mSL_StM_FreePt + 2;
+    flags |= mSL_StM_GlobFlgs; // merge with global flags
+    ((size + mSL_StM_FreePt) > mSL_StM_Top) ? (
+        mSL_StM_Err = 108; mSL_StM_ErrLoc = 0;
+    ) : (
+        (flags & mSL_StM_FlCheck) ? (
+            mSL_StM_Check();
+        );
+    );
+    ((flags & mSL_StM_FlSigErr) && (mSL_StM_Err != 0)) ? (
+        s = #; sprintf(s, "MemError %d at %d", mSL_StM_Err, mSL_StM_ErrLoc);
+        strcpy(#dbg_desc, s);
+        add = 0;
+    );
+    add ? (
+        size = 0|min(mSL_StM_MaxRq, max(0, size));
+        type = 0|min(mSL_StM_Key_max, max(mSL_StM_Key_min, type));
+        flags = 0|flags;
+        // Should the block be inside a 64k zone ?
+        ((flags & mSL_StM_FlAlign) && ((add & mSL_StM_Zone) != ((add + size - 1) & mSL_StM_Zone))) ? (
+            // create a filler block of the appropriate size
+            fill = 0x10000 - (mSL_StM_FreePt & mSL_StM_Loc) - 6; 
+            add[-2] = 'fill';
+            add[-1] = fill;
+            mSL_StM_FreePt = add + fill + 2;
+            mSL_StM_FreePt[-2] = fill;
+            mSL_StM_FreePt[-1] = 'fill' ~ mSL_StM_TMask;
+            add = mSL_StM_FreePt + 2;
+        );
+        add[-2] = type;
+        add[-1] = size;
+        mSL_StM_FreePt = add + size + 2;
+        mSL_StM_FreePt[-2] = size;
+        mSL_StM_FreePt[-1] = type ~ mSL_StM_TMask;
+        mSL_StM_FreePt[0] = mSL_StM_High;
+        (flags & mSL_StM_FlClear) ? memset(add, 0, size) :
+        (flags & mSL_StM_FlFill) ? memcpy(add, 0|rand(mSL_StM_FreePt), size);
+    );
+    add;
+);
+
+// function malloc(size) ( mSL_StM_Alloc(size, 'data', 0); );
+// function calloc(count,size) ( mSL_StM_Alloc(count*size, 'data', mSL_StM_FlClear); );
+
+
+function mSL_StM_BlockStart(type)
+global(mSL_StM_Start, mSL_StM_Low, mSL_StM_High, mSL_StM_Key_min, mSL_StM_Key_max, mSL_StM_Zone, mSL_StM_Loc, mSL_StM_MaxRq, mSL_StM_FreePt, 
+    mSL_StM_BlockType, mSL_StM_BlockSize, mSL_StM_Top, mSL_StM_Err, mSL_StM_ErrLoc, mSL_StM_ErrAux, mSL_StM_GlobFlgs, mSL_StM_Dangling, mSL_StM_TMask,
+    mSL_StM_FlClear, mSL_StM_FlAlign, mSL_StM_FlCheck, mSL_StM_FlSigErr, mSL_StM_FlFill)
+local (add, size)
+(
+    add = 0;
+    (mSL_StM_FreePt[0] == mSL_StM_High) && (mSL_StM_FreePt < mSL_StM_Top - 128) ? (
+        add = mSL_StM_FreePt + 2;
+        type = 0|min(mSL_StM_Key_max, max(mSL_StM_Key_min, type));
+        size = mSL_StM_Top - mSL_StM_FreePt - 4;
+        add[-2] = type;
+        add[-1] = size;
+        mSL_StM_FreePt = mSL_StM_Top;
+        mSL_StM_FreePt[-2] = size;
+        mSL_StM_FreePt[-1] = type ~ mSL_StM_TMask;
+        mSL_StM_FreePt[0] = mSL_StM_High;
+        mSL_StM_Dangling = 1;
+    );
+    add;
+);
+        
+
+function mSL_StM_BlockEnd(addr)
+global(mSL_StM_Start, mSL_StM_Low, mSL_StM_High, mSL_StM_Key_min, mSL_StM_Key_max, mSL_StM_Zone, mSL_StM_Loc, mSL_StM_MaxRq, mSL_StM_FreePt, 
+    mSL_StM_BlockType, mSL_StM_BlockSize, mSL_StM_Top, mSL_StM_Err, mSL_StM_ErrLoc, mSL_StM_ErrAux, mSL_StM_GlobFlgs, mSL_StM_Dangling, mSL_StM_TMask,
+    mSL_StM_FlClear, mSL_StM_FlAlign, mSL_StM_FlCheck, mSL_StM_FlSigErr, mSL_StM_FlFill)
+local (size, prev, res)
+(
+    res = 0;
+    mSL_StM_Dangling && (mSL_StM_FreePt == mSL_StM_Top) && (mSL_StM_FreePt[0] == mSL_StM_High) ? (
+        size = mSL_StM_FreePt[-2]; prev = mSL_StM_Top - size - 2;
+        (prev[-1] == size) && (mSL_StM_FreePt[-1] == (prev[-2] ~ mSL_StM_TMask)) && (addr >= prev) && (addr < mSL_StM_Top - 4) ? (
+            mSL_StM_FreePt[0] = 0;
+            mSL_StM_FreePt = prev + (size = addr - prev) + 2;
+            mSL_StM_FreePt[-2] = size;
+            mSL_StM_FreePt[-1] = prev[-2] ~ mSL_StM_TMask;
+            mSL_StM_FreePt[0] = mSL_StM_High;
+            prev[-1] = size;
+            res = prev;
+            mSL_StM_Dangling = 0;
+        );
+    );
+    res;
+);
+

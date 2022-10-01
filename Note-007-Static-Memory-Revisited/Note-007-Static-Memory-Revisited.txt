@@ -1,0 +1,98 @@
+[b]Introduction[/b]
+
+We have presented [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]a static memory allocator[/url], which can be handy for some tasks. However, this one insists to know the size you need before allocating the space. But there are cases when this information is not available before you have started using a part of this space: reading a file and constructing a structure depending on the contents of this file, or using an external library which needs to allocate space, etc.
+
+For this purpose, I added two new operations, and rewrite a little the rest of the programs. In fact, I also changed the prefix of all names, to avoid possible conflicts with other softwares. So here is the "final" JSFX interface:
+[list]
+[*][b]mSL_StM_Init(address)[/b]: define the memory location of the first word to be allocated for the memory allocation. [b]mSL_StM_Init()[/b] starts allocating at address 0.
+[*][b]mSL_StM_Alloc(size,type,flags)[/b]: allocate a new memory block, of size "size", of type "type", according to a set of "flags". The parameter "flags" is an additive combination of the following values:
+[list]
+[*][b]mSL_StM_FlClear[/b]: clear block contents once allocated
+[*][b]mSL_StM_FlAlign[/b]: allocate inside a 64k boundary (useful for arrays used with functions like [b]mdct[/b], [b]fft[/b], etc.)
+[/list] 
+[*][b]mSL_StM_Check(address)[/b]: check the validity of the memory block at "address". [b]mSL_StM_Check()[/b] checks the whole static memory.
+[*][n]mSL_StM_BlockStart(type)[/n]: allocate the largest possible block, giving it the type "type". The result is the address of the first available word. You can only use [n]mSL_StM_BlockEnd(free)[/n] after this call.
+[*][n]mSL_StM_BlockEnd(free)[/n]: resize the previously allocated block, by giving the information that "free" is the first memory address that you don't use in this block. You can use any allocation function after this call.
+[/list]
+
+[b]Using the allocator[/b]
+
+In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create a new folder, that you will name "JackUtilities". Get the file "mSL_StM_Memory.jsfx-inc" from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-007-Static-Memory-Revisited]github Note-007[/url], and install it in "JackUtilities". 
+
+Import the file in your JSFX plug-in with "import JackUtilities/mSL_StM_Memory.jsfx-inc", and in the "@init" section, initialize the manager by "mSL_StM_Init()" to start the allocation at the first word of the memory, or by "mSL_StM_Init(100)" to start at address 100, etc.
+
+Let's give an example by using the excellent library "ui-lib", designed by Geraint Luff (see his [url=https://github.com/geraintluff/jsfx-ui-lib/]github[/url]). Here is the simplest example, embedded with the use of the allocator:
+[code]
+desc:JJ-Test-JSFX-06
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import ui-lib.jsfx-inc
+
+@init
+mSL_StM_Init(8); // init the allocation, starting at address 8
+// start creating some needed tables first
+madd1 =  mSL_StM_Alloc(128, 'data', 0);
+madd2 =  mSL_StM_Alloc(4096, 'data', 0);
+// now, Use UI-Lib
+start = mSL_StM_BlockStart('ULib'); // don't use mSL_StM_Alloc after this call
+// now, the ui_lib can use all the memory it needs
+mfree = ui_setup(start);  // initalize ui-lib
+// we have now the address of first free word after the ui-lib work areas
+mSL_StM_BlockEnd(mfree); // close the block - we can use again the alloc function
+...
+madd3 =  mSL_StM_Alloc(12, 'data', MemFlFill);
+...
+@gfx
+ui_start();
+ui_text("Hello, world!");
+[/code]
+
+You can also provide the static allocation operations that a library needs, for compatibility with C for example:
+[list]
+[*][b]malloc(size)[/b] can be defined as [i]mSL_StM_Alloc(size,'data',0)[/i].
+[*][b]calloc(count,size)[/b] can be defined as [i]mSL_StM_Alloc(count*size,'data',MemFlClear)[/i]
+[/list]
+But of course, these are functions for [i]static[/i] allocation, and you can't "free" such allocated blocks.
+
+On the other hand, you may need a dynamic allocator, i.e. one which provides malloc and free similar to the usual Unix operations. I will describe such a thing in a future note, but there already exists an excellent one, written by [i]Theo Niessen[/i], which can be found as [b]malloc.jsfx-inc[/b] in [url=https://www.taletn.com/reaper/mono_synth/]Tale's JSFX Pack[/url]. Since the functions malloc and free operate in O(N), where N is the number of allocated blocks, it could be not extremely efficient for very large values of N (like 10000 or more - but such a need is quite unlikely in a JSFX plug-in!), but it does its job most of the times.
+
+This allocator needs to access the first three words of memory (where it keeps a pointer to the free memory after its last allocated block, and the size of its first block, but here is a way to combine boths allocators:
+[code]
+desc:JJ-Test-JSFX-06b
+import malloc.jsfx-inc
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+@init
+mSL_StM_Init(3); // leave free the first three words of memory
+madd1 =  mSL_StM_Alloc(18, 'data', MemFlFill); // use the static allocator
+madd2 =  mSL_StM_Alloc(128, 'data', 0); // etc.
+...
+// All static allocations are done - Leave the rest of the memory for the dynamic allocator
+mfree = mSL_StM_BlockStart('Tale'); // begin a new block using our static allocator
+// simulate a first allocated bloc "à la Tale"
+M = 0;
+M[0] = mfree;
+M[1] = M[2] = mfree - 3;
+// All the static allocated memory we used is contained inside the first block of Tale's allocator
+// And... all the dynamic memory it uses is contained inside our last static block.
+// Now we can freely use Tale's allocator - but no more the static allocator
+add6 = malloc(64);
+add7 = malloc(32);
+add8 = malloc(12);
+free(add7);
+add9 = malloc(43);
+free(add6);
+free(add8);
+add10 = malloc(25);
+// etc...
+[/code]
+A question we can ask is: why don't we use Tale's allocator for blocks madd1, madd2, etc.? We can, and it will work perfectly. But if we need to allocate first a hundred of "definitely permanent" blocks (probably a very rare case!), the "malloc" function will crawl the full list of these blocks before having a chance to find a free one. So it's better to statically alloc what is permanent, and dynamically alloc what is temporary.
+
+[b]So...[/b]
+These two examples show how we can combine existing libraries with our allocator, without modifying any of them. 
+
+All the best !
+
+J. Jack.
+
+Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-007-Static-Memory-Revisited]JackUtilities github Note-007[/url].
+
+[b]TL;DR summary:[/b] combining the static allocator with other libraries.
