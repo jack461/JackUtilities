@@ -1,14 +1,17 @@
 [b]Advanced JSFX Programming Notes[/b]
 
-[b]Table of contents -- updated 2022/09/23[/b]
+[b]Table of contents -- updated October 1, 2022[/b]
 [list]
 [*][url=https://forum.cockos.com/showthread.php?p=2597176#post2597176]About declarations[/url]
-[*][url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]A static memory allocator[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]A static memory allocator[/url]  [b]Updated: October 1, 2022[/b]
 [*][url=https://forum.cockos.com/showthread.php?p=2597178#post2597178]Numbers Properties[/url]
 [*][url=https://forum.cockos.com/showthread.php?p=2597398#post2597398]About strings[/url]
 [*][url=https://forum.cockos.com/showthread.php?p=2598945#post2598945]A switch-like construct[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2599884#post2599884]Floats, Doubles, and the @serialize problem[/url]
+[*][url=https://forum.cockos.com/showthread.php?p=2601042#post2601042]Static memory (revisited) and external libraries[/url]  [b]New: October 1, 2022[/b].
 [*]...
 [/list]
+
 
 [b]Presentation[/b]
 

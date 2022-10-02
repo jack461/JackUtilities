@@ -142,5 +142,5 @@ m32 = M[32];
 */
 @gfx
 ui_start();
-ui_text("Using ui-lib, by Geraint Luff, and malloc, by Theo Niessen!");
+ui_text("Using ui-lib, by Geraint Luff, and malloc, by Theo Niessink!");
 

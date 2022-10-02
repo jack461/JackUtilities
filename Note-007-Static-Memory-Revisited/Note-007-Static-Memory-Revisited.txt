@@ -11,8 +11,8 @@ For this purpose, I added two new operations, and rewrite a little the rest of t
 [*][b]mSL_StM_FlAlign[/b]: allocate inside a 64k boundary (useful for arrays used with functions like [b]mdct[/b], [b]fft[/b], etc.)
 [/list] 
 [*][b]mSL_StM_Check(address)[/b]: check the validity of the memory block at "address". [b]mSL_StM_Check()[/b] checks the whole static memory.
-[*][n]mSL_StM_BlockStart(type)[/n]: allocate the largest possible block, giving it the type "type". The result is the address of the first available word. You can only use [n]mSL_StM_BlockEnd(free)[/n] after this call.
-[*][n]mSL_StM_BlockEnd(free)[/n]: resize the previously allocated block, by giving the information that "free" is the first memory address that you don't use in this block. You can use any allocation function after this call.
+[*][b]mSL_StM_BlockStart(type)[/b]: allocate the largest possible block, giving it the type "type". The result is the address of the first available word. You can only use [b]mSL_StM_BlockEnd(free)[/b] after this call, as the memory is now "full".
+[*][b]mSL_StM_BlockEnd(free)[/b]: resize the previously allocated block, by giving the information that "free" is the first memory address that you don't use in this block. You can use any allocation function after this call.
 [/list]
 
 [b]Using the allocator[/b]
@@ -53,7 +53,7 @@ You can also provide the static allocation operations that a library needs, for 
 [/list]
 But of course, these are functions for [i]static[/i] allocation, and you can't "free" such allocated blocks.
 
-On the other hand, you may need a dynamic allocator, i.e. one which provides malloc and free similar to the usual Unix operations. I will describe such a thing in a future note, but there already exists an excellent one, written by [i]Theo Niessen[/i], which can be found as [b]malloc.jsfx-inc[/b] in [url=https://www.taletn.com/reaper/mono_synth/]Tale's JSFX Pack[/url]. Since the functions malloc and free operate in O(N), where N is the number of allocated blocks, it could be not extremely efficient for very large values of N (like 10000 or more - but such a need is quite unlikely in a JSFX plug-in!), but it does its job most of the times.
+On the other hand, you may need a dynamic allocator, i.e. one which provides malloc and free similar to the usual Unix operations. I will describe such a thing in a future note, but there already exists an excellent one, written by [i]Theo Niessink[/i], which can be found as [b]malloc.jsfx-inc[/b] in [url=https://www.taletn.com/reaper/mono_synth/]Tale's JSFX Pack[/url]. Since the functions malloc and free operate in O(N), where N is the number of allocated blocks, it could be not extremely efficient for very large values of N (like 10000 or more - but such a need is quite unlikely in a JSFX plug-in!), but it does its job most of the times.
 
 This allocator needs to access the first three words of memory (where it keeps a pointer to the free memory after its last allocated block, and the size of its first block, but here is a way to combine boths allocators:
 [code]
@@ -87,6 +87,7 @@ add10 = malloc(25);
 A question we can ask is: why don't we use Tale's allocator for blocks madd1, madd2, etc.? We can, and it will work perfectly. But if we need to allocate first a hundred of "definitely permanent" blocks (probably a very rare case!), the "malloc" function will crawl the full list of these blocks before having a chance to find a free one. So it's better to statically alloc what is permanent, and dynamically alloc what is temporary.
 
 [b]So...[/b]
+
 These two examples show how we can combine existing libraries with our allocator, without modifying any of them. 
 
 All the best !
