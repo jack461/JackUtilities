@@ -1,0 +1,49 @@
+/*
+    A dynamic string allocator
+
+    needs the "mSL_StM_Memory.jsfx-inc" library.
+*/ 
+@init
+
+function mSL_Str_Init(first, last)
+global(mSL_Str_First, mSL_Str_Last, mSL_Str_Count, mSL_Str_Use, mSL_Str_Stack, mSL_Str_Uptr,
+    mSL_Str_Default, mSL_StM_FlClear, #mSL_Str_Default)
+local (i)
+(
+    mSL_Str_First = first; mSL_Str_Last = last; mSL_Str_Count = last-first+1;
+    mSL_Str_Use = mSL_StM_Alloc(mSL_Str_Count, 'stru', mSL_StM_FlClear);
+    mSL_Str_Stack = mSL_StM_Alloc(mSL_Str_Count, 'strs', 0);
+    i=0; loop(mSL_Str_Count, mSL_Str_Stack[i] = i+first; i+=1;);
+    mSL_Str_Uptr = mSL_Str_Count - 1;
+    mSL_Str_Default = #mSL_Str_Default; // provide a default string
+);
+
+function mSL_Str_Alloc(val)
+global(mSL_Str_First, mSL_Str_Last, mSL_Str_Count, mSL_Str_Use, mSL_Str_Stack, mSL_Str_Uptr, mSL_Str_Default)
+local (s, z)
+(
+    (mSL_Str_Uptr >= 0) && ((s = mSL_Str_Stack[mSL_Str_Uptr]) >= mSL_Str_First) 
+                   && (s <= mSL_Str_Last) && (mSL_Str_Use[z = s - mSL_Str_First] == 0) ? (
+        mSL_Str_Use[z] = 1;
+        mSL_Str_Uptr -= 1;
+    ) : (
+        s = mSL_Str_Default; // use the strdefault
+    );
+    val == 0 ? val = "";
+    strcpy(s, val);
+    s;
+);
+
+function mSL_Str_Free(str)
+global(mSL_Str_First, mSL_Str_Last, mSL_Str_Count, mSL_Str_Use, mSL_Str_Stack, mSL_Str_Uptr, mSL_Str_Default)
+local (n)
+(
+    (str >= mSL_Str_First) && (str <= mSL_Str_Last) && (mSL_Str_Use[n = str - mSL_Str_First] == 1) ? (
+        mSL_Str_Use[n] = 0;
+        mSL_Str_Uptr +=1;
+        mSL_Str_Stack[mSL_Str_Uptr] = str;
+        strcpy(str, ""); 
+    );
+);
+
+

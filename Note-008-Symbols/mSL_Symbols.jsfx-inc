@@ -1,0 +1,482 @@
+/*
+   Symbols Management
+*/
+
+@init
+
+function mSL_init_symbols()
+global(mSL_W_sidt, mSL_W_idt, mSL_W_fidt, mSL_W_CAlgs, mSL_W_Algs, mSL_W_CPrs, mSL_W_Pairs, mSL_W_PReps, mSL_wa1,
+    mSL_StM_FlClear)
+local (idx)
+(
+    mSL_W_sidt = 128; // accept 127 chars identifiers
+    mSL_W_idt = mSL_StM_Alloc(mSL_W_sidt+2, 'data', mSL_StM_FlClear); // editing the identifier
+    mSL_W_fidt = mSL_StM_Alloc(mSL_W_sidt+2, 'data', mSL_StM_FlClear); // flags
+    mSL_W_CAlgs = 40;
+    mSL_W_Algs = mSL_StM_Alloc(mSL_W_CAlgs, 'data', mSL_StM_FlClear);// 
+    mSL_wa1 = mSL_StM_Alloc(16, 'data', mSL_StM_FlClear);// 
+    mSL_W_Algs[0] = 1; mSL_W_Algs[1] = 2; mSL_W_Algs[2] = 3; mSL_W_Algs[3] = 16; 
+    mSL_W_Algs[4] = 2; mSL_W_Algs[5] = 3; mSL_W_Algs[4] = 4; mSL_W_Algs[5] = 5; 
+    mSL_W_Algs[8] = 6; mSL_W_Algs[9] = 7; mSL_W_Algs[10] = 8; mSL_W_Algs[11] = 9; 
+    mSL_W_Algs[12] = 1; mSL_W_Algs[13] = 3; mSL_W_Algs[14] = 3; mSL_W_Algs[15] = 2; 
+    mSL_W_Algs[16] = 10; mSL_W_Algs[17] = 2; mSL_W_Algs[18] = 1; mSL_W_Algs[19] = 11; 
+    mSL_W_Algs[20] = 12; mSL_W_Algs[21] = 17; mSL_W_Algs[22] = 3; mSL_W_Algs[23] = 13; 
+    mSL_W_Algs[24] = 15; mSL_W_Algs[25] = 2; mSL_W_Algs[26] = 1; mSL_W_Algs[27] = 14; 
+    mSL_W_Algs[28] = 3; mSL_W_Algs[29] = 2; mSL_W_Algs[30] = 4; mSL_W_Algs[31] = 6; 
+    mSL_W_Algs[32] = 8; mSL_W_Algs[33] = 1; mSL_W_Algs[34] = 12; mSL_W_Algs[35] = 15; 
+    mSL_W_Algs[36] = 8; mSL_W_Algs[37] = 10; mSL_W_Algs[38] = 12; mSL_W_Algs[39] = 15; 
+    mSL_W_CPrs = 37;
+    mSL_W_Pairs = mSL_StM_Alloc(mSL_W_CPrs, 'data', mSL_StM_FlClear); // 
+    mSL_W_PReps = mSL_StM_Alloc(mSL_W_CPrs, 'data', mSL_StM_FlClear); // 
+    idx = 0;
+    // replace an often used sequence of 2 chars by a less often used unique char
+    mSL_W_Pairs[idx] = 'es'; mSL_W_PReps[idx] = '5'; idx += 1;
+    mSL_W_Pairs[idx] = 'le'; mSL_W_PReps[idx] = '7'; idx += 1;
+    mSL_W_Pairs[idx] = 'en'; mSL_W_PReps[idx] = 'W'; idx += 1;
+    mSL_W_Pairs[idx] = 're'; mSL_W_PReps[idx] = '6'; idx += 1;
+    mSL_W_Pairs[idx] = 'de'; mSL_W_PReps[idx] = '2'; idx += 1;
+    mSL_W_Pairs[idx] = 'nt'; mSL_W_PReps[idx] = 'j'; idx += 1;
+    mSL_W_Pairs[idx] = 'te'; mSL_W_PReps[idx] = 'b'; idx += 1;
+    mSL_W_Pairs[idx] = 'ai'; mSL_W_PReps[idx] = 'Z'; idx += 1;
+    mSL_W_Pairs[idx] = 'et'; mSL_W_PReps[idx] = 'K'; idx += 1;
+    mSL_W_Pairs[idx] = 'er'; mSL_W_PReps[idx] = '9'; idx += 1;
+    mSL_W_Pairs[idx] = 'se'; mSL_W_PReps[idx] = 'z'; idx += 1;
+    mSL_W_Pairs[idx] = 'ct'; mSL_W_PReps[idx] = 'x'; idx += 1;
+    mSL_W_Pairs[idx] = 'th'; mSL_W_PReps[idx] = '8'; idx += 1;
+    mSL_W_Pairs[idx] = 'he'; mSL_W_PReps[idx] = '0'; idx += 1;
+    mSL_W_Pairs[idx] = 'an'; mSL_W_PReps[idx] = 'h'; idx += 1;
+    mSL_W_Pairs[idx] = 'ie'; mSL_W_PReps[idx] = 'y'; idx += 1;
+    mSL_W_Pairs[idx] = 'ch'; mSL_W_PReps[idx] = 'H'; idx += 1;
+    mSL_W_Pairs[idx] = 'au'; mSL_W_PReps[idx] = 'o'; idx += 1;
+    mSL_W_Pairs[idx] = 'ou'; mSL_W_PReps[idx] = 'w'; idx += 1;
+    mSL_W_Pairs[idx] = 'sl'; mSL_W_PReps[idx] = 'q'; idx += 1;
+    mSL_W_Pairs[idx] = 'ph'; mSL_W_PReps[idx] = 'f'; idx += 1;
+    mSL_W_Pairs[idx] = 'in'; mSL_W_PReps[idx] = 'v'; idx += 1;
+    mSL_W_Pairs[idx] = 'nd'; mSL_W_PReps[idx] = 'X'; idx += 1;
+    mSL_W_Pairs[idx] = 'st'; mSL_W_PReps[idx] = 'Y'; idx += 1;
+    mSL_W_Pairs[idx] = 'bl'; mSL_W_PReps[idx] = 'B'; idx += 1;
+    mSL_W_Pairs[idx] = 'ck'; mSL_W_PReps[idx] = 'k'; idx += 1;
+    mSL_W_Pairs[idx] = 'qu'; mSL_W_PReps[idx] = 'Q'; idx += 1;
+    mSL_W_Pairs[idx] = 'on'; mSL_W_PReps[idx] = 'V'; idx += 1;
+    mSL_W_Pairs[idx] = 'eo'; mSL_W_PReps[idx] = 'O'; idx += 1;
+    mSL_W_Pairs[idx] = 'to'; mSL_W_PReps[idx] = 'G'; idx += 1;
+    mSL_W_Pairs[idx] = 'mq'; mSL_W_PReps[idx] = 'J'; idx += 1;
+    mSL_W_Pairs[idx] = 'ed'; mSL_W_PReps[idx] = 'g'; idx += 1;
+    mSL_W_Pairs[idx] = 'rd'; mSL_W_PReps[idx] = 'p'; idx += 1;
+    mSL_W_Pairs[idx] = 'ha'; mSL_W_PReps[idx] = 'P'; idx += 1;
+    mSL_W_Pairs[idx] = 'ea'; mSL_W_PReps[idx] = 'M'; idx += 1;
+    mSL_W_Pairs[idx] = 'ol'; mSL_W_PReps[idx] = 'L'; idx += 1;
+    mSL_W_Pairs[idx] = 'ns'; mSL_W_PReps[idx] = 'm'; idx += 1;
+);
+
+// Code a string as an "integer" value
+// An identifier is coded as 8 (6 bits) chars in a number.
+
+// First - compact the symbol as a string of 8 chars
+function mSL_compact(str)
+global(mSL_W_sidt, mSL_W_idt, mSL_W_fidt, mSL_W_CAlgs, mSL_W_Algs, mSL_W_CPrs, mSL_W_Pairs, mSL_W_PReps)
+local (lg, ch, pch, code, x, y, z, s, pa, del, p, cp, cg, ct, alg, ik, jk, kk, cnt, fl16, fl17, rez)
+(
+    rez = #; strcpy(rez, "");
+    ((lg = strlen(str)) > 0) ? (
+        ch = str_getchar(str, 0, 'cu');
+        (((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z')) || (ch == '_')) ? (
+            memset(mSL_W_idt, 0, mSL_W_sidt+2);
+            memset(mSL_W_fidt, 0, mSL_W_sidt+2);
+
+            // Step 1 : copy chars in work array
+            pch = 0;
+            while ((pch < mSL_W_sidt) && (lg > 0)) (
+                (((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z')) 
+                || ((ch >= '0') && (ch <= '9')) || (ch == '_'))  ?  (
+                    ((ch >= 'A') && (ch <= 'Z')) ? (
+                        mSL_W_fidt[pch] = 1;
+                        ch = ch + 'a' - 'A';
+                    );
+                ) : (
+                    ch = '_'; // change unrecognized chars to "_"
+                );
+                mSL_W_idt[pch] = ch;  
+                lg -= 1; pch += 1;
+                ch = str_getchar(str, pch, 'cu');
+            ); 
+            lg = pch;
+
+            // Step 2 : add a char in front of long identifiers (yes)
+            (lg > 8) ? (
+                z = x = y = lg;
+                loop (lg,
+                    x -= 1; mSL_W_idt[y] = mSL_W_idt[x]; 
+                    (mSL_W_fidt[y] = mSL_W_fidt[x]) ? z += 1;
+                    y -= 1;
+                );
+                mSL_W_idt[0] = '0' + ((lg+z) % 10);
+                mSL_W_fidt[0] = 0; 
+                lg += 1; // therefore longer
+            );
+
+            // Step 3 : apply reducing algos
+            fl16 = fl17 = 1;
+            cp = pa = ct = 0;
+            while (lg > 8) (
+                cg = 0; del = -1; cp = max(1, cp % lg); cp == 1 ? ct += 1;
+                alg = mSL_W_Algs[pa]; pa = (pa + 1) % mSL_W_CAlgs;
+                (alg == 1) ? (
+                    // suppress a '_'
+                    while ((cp < lg) && (del < 0)) (
+                        ch = mSL_W_idt[cp];
+                        (ch == '_') ? (
+                            del = cp;
+                            cg = mSL_W_idt[del];
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 2) ? (
+                    // suppress some redundencies
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == mSL_W_idt[cp+1]) ? (
+                            del = cp;
+                            cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 3) ? (
+                    // look for a replacable pair
+                    while ((cp < lg) && (del < 0)) (
+                        kk = (mSL_W_idt[cp] << 8) | mSL_W_idt[cp+1];
+                        p = 0;
+                        while ((p < mSL_W_CPrs) && (del < 0)) (
+                            (kk == mSL_W_Pairs[p]) ? (
+                                del = cp+1; 
+                                ch = mSL_W_PReps[p];
+                                ((ch >= 'A') && (ch <= 'Z')) ? (
+                                    ch = ch + 'a' - 'A';
+                                    mSL_W_fidt[cp] |= 1;
+                                );
+                                mSL_W_idt[cp] = ch;
+                            ) ;
+                            p += 1;
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 4) ? (
+                    cnt = 0;
+                    // delete 3rd e 
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == 'e') ? (
+                            cnt += 1;
+                            (cnt == 3) ? (
+                                del = cp;
+                                cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                            );
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 5) ? (
+                    cnt = 0;
+                    // change 2nd e to '3'
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == 'e') ? (
+                            cnt += 1;
+                            (cnt == 2) ? (
+                                mSL_W_idt[cp] = '3';
+                                cg = 3;
+                            )
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 6) ? (
+                    cnt = 0;
+                    // delete 3rd a 
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == 'a') ? (
+                            cnt += 1;
+                            (cnt == 3) ? (
+                                del = cp;
+                                cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                            );
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 7) ? (
+                    cnt = 0;
+                    // change 2nd a to '4'
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == 'a') ? (
+                            cnt += 1;
+                            (cnt == 2) ? (
+                                mSL_W_idt[cp] = '4';
+                                cg = 4;
+                            );
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 8) ? (
+                    cnt = 0;
+                    // delete 3rd i 
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == 'i') ? (
+                            cnt += 1;
+                            (cnt == 3) ? (
+                                del = cp;
+                                cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                            );
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 9) ? (
+                    cnt = 0;
+                    // change 2nd i to '1'
+                    while ((cp < lg) && (del < 0)) (
+                        (mSL_W_idt[cp] == 'i') ? (
+                            cnt += 1;
+                            (cnt == 2) ? (
+                                mSL_W_idt[cp] = '1';
+                                cg = 5;
+                            );
+                        );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 10) ? (
+                    // Delete
+                    // delete a letter near the very end
+                    del = 0|(3 * lg / 4); cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                ) :
+                (alg == 11) ? (
+                    // delete a letter near the end
+                    del = 0|(2 * lg / 3); cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                ) :
+                (alg == 12) ? (
+                    // delete a letter near the middle
+                    del = 0|(lg / 2); cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                ) :
+                (alg == 13) ? (
+                    // delete a letter near the start
+                    del = 0|(lg / 3); cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                ) :
+                (alg == 14) ? (
+                    // delete preceding last letter
+                    del = lg - 2; cg = mSL_W_idt[del] + mSL_W_fidt[del];
+                ) :
+                (alg == 15) ? (
+                    // delete last woyel
+                    while (cp < lg) (
+                        ((mSL_W_idt[cp] == 'a') || (mSL_W_idt[cp] == 'e') || (mSL_W_idt[cp] == 'i') || 
+                         (mSL_W_idt[cp] == 'o') || (mSL_W_idt[cp] == 'u') || (mSL_W_idt[cp] == '_')) ? (
+                            del = cp; cg = mSL_W_idt[cp];
+                         );
+                        cp += 1;
+                    );
+                ) :
+                (alg == 16) ? (
+                    // exchange last with a previous one
+                    fl16 ? (
+                        ik = lg - 1; jk = 0|(lg / 4.2);
+                        ch = mSL_W_idt[ik];  mSL_W_idt[ik] = mSL_W_idt[jk];  mSL_W_idt[jk] = ch;
+                        fl16 = 0; cg = 1;
+                    );
+                ) :
+                (alg == 17) ? (
+                    // exchange last with a less previous one
+                    fl17 ? (
+                        ik = lg - 1; jk = 0|(lg / 2.7);
+                        ch = mSL_W_idt[ik];  mSL_W_idt[ik] = mSL_W_idt[jk];  mSL_W_idt[jk] = ch;
+                        fl17 = 0; cg = 1;
+                    );
+                );
+                
+                (del >= 0) ? (
+                    mSL_W_fidt[del+1] |= mSL_W_fidt[del];
+                    while (del < lg) (
+                        mSL_W_idt[del] = mSL_W_idt[del+1];
+                        mSL_W_fidt[del] = mSL_W_fidt[del+1];
+                        del += 1;
+                    );
+                    lg -= 1; cg += 1;
+                );
+
+                (cg > 0) ? (
+                    mSL_W_idt[0] = '0' + (((mSL_W_idt[0] & 0xf) + cg) % 10);
+                );
+            );
+            
+            // end of algorithm - restore capital letters
+            p = 0; loop(lg, 
+                ch = mSL_W_idt[p];
+                (mSL_W_fidt[p] && (ch >= 'a') && (ch <= 'z')) ? (
+                    ch = ch + 'A' - 'a';
+                );
+                str_setchar(rez, p, ch, 'cu');
+                p+= 1;
+            );
+        );
+    );
+    rez;
+);
+
+function mSL_symbol(str)
+global(mSL_W_sidt, mSL_W_idt, mSL_W_fidt, mSL_W_CAlgs, mSL_W_Algs, mSL_W_CPrs, mSL_W_Pairs, mSL_W_PReps)
+local (lg, ch, pch, code, x, y, z, s, rez)
+(
+    code = 0; pch = s = 0; 
+    ((lg = strlen(str)) > 0) ? (
+        ch = str_getchar(str, 0, 'cu');
+        (((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z')) || (ch == '_') || (ch == '.')) ? (
+            (lg <= 8) ? (
+                while ((lg > 0) && (((ch >= 'A') && (ch <= 'Z')) || ((ch >= 'a') && (ch <= 'z')) 
+                    || ((ch >= '0') && (ch <= '9')) || (ch == '_') || (ch == '.')))  (
+                    ((ch >= '0') && (ch <= '9')) ? (
+                        ch = ch - '0' + 1;
+                    ) : 
+                    ((ch >= 'A') && (ch <= 'Z')) ? (
+                        ch = ch - 'A' + 11;
+                    ) :
+                    ((ch >= 'a') && (ch <= 'z')) ? (
+                        ch = ch - 'a' + 37;
+                    ) : 
+                    (
+                        ch = 63; // for _ or any other char
+                    );
+                    (s < 8) ? (
+                        code = code * 64 + ch; s += 1;
+                    );
+                    lg -= 1; pch += 1; 
+                    ch = str_getchar(str, pch, 'cu');
+                );
+                while (s < 8) (
+                    code = code * 64; s+= 1;
+                );
+            ) : (
+                rez = #;
+                strcpy(rez, mSL_compact(str));
+                code = 0; s = 0;
+                loop(8,
+                    ch = str_getchar(rez, s, 'cu');
+                    ((ch >= '0') && (ch <= '9')) ? (
+                        ch = ch - '0' + 1;
+                    ) : 
+                    ((ch >= 'A') && (ch <= 'Z')) ? (
+                        ch = ch - 'A' + 11;
+                    ) :
+                    ((ch >= 'a') && (ch <= 'z')) ? (
+                        ch = ch - 'a' + 37;
+                    ) : 
+                    (
+                        ch = 63; // for _ or any other char
+                    );
+                    code = code * 64 + ch; s += 1;
+                );
+                lg = 0;
+            );
+        ) : 
+        ((ch > 0x20) && (ch < 0x7f)) ? (
+            while ((lg > 0) && (ch > 0x20) && (ch < 0x7f)) (
+                code = (code << 7) | ch;
+                lg -= 1; pch += 1;
+                ch = str_getchar(str, pch, 'cu');
+            );
+            code = (code << 8) | 0x40;
+        ) :
+        (ch >= 0x80) ? (
+            // Multi byte char - other bytes follow...
+            pch += 1; lg -= 1;
+            ((ch & 0xE0) == 0xC0) ? (
+                // a 2 bytes UNICODE char
+                x = str_getchar(str, pch, 'cu'); pch += 1; lg -= 1;
+                ch = ((ch & 0x1f) << 6) | (x & 0x3f);
+            ) :
+            ((ch & 0xF0) == 0xE0) ? (
+                // a 3 bytes UNICODE char
+                x = str_getchar(str, pch, 'cu'); pch += 1; lg -= 1;
+                y = str_getchar(str, pch, 'cu'); pch += 1; lg -= 1;
+                ch = ((ch & 0x0F) << 12) | ((x & 0x3F) << 6) | (y & 0x3F);
+            ) :
+            ((ch & 0xF8) == 0xF0) ? (
+                // a 4 bytes UNICODE char
+                x = str_getchar(str, pch, 'cu'); pch += 1; lg -= 1;
+                y = str_getchar(str, pch, 'cu'); pch += 1; lg -= 1;
+                z = str_getchar(str, pch, 'cu'); pch += 1; lg -= 1;
+                ch = ((ch & 0x07) << 18) | ((x & 0x3F) << 12) | ((y & 0x3F) << 6) | (z & 0x3F);
+            );
+            code = (ch << 8) | 0x80;
+        ) : (
+            code = (ch << 8) | 0xC0;
+            lg -= 1; 
+        );
+    ) : (
+        code = -1;
+    );
+    (lg != 0) ? code = -1;
+    code;
+);
+
+
+
+// Decode in a temporary string a codified identifier
+function mSL_id2Str(ident)
+global(mSL_W_sidt, mSL_W_idt, mSL_W_fidt, mSL_W_CAlgs, mSL_W_Algs, mSL_W_CPrs, mSL_W_Pairs, mSL_W_PReps, mSL_wa1)
+local(ip, A, B, c, strr)
+(
+    A = 0 | (ident / 16777216) ; // 4 chars
+    B = 0 | (ident - 16777216 * A) ; // 4 next chars
+    ip = 0;
+    mSL_wa1[0] = '?';
+    strr = #; // provide a temporary result
+    while ((A != 0) || (B != 0)) (
+        (B == 0) ? (B = A; A = 0);
+        c = B & 0x3f; B = (B >> 6);
+        (c != 0) ? (
+            (c < 11) ? (
+                c += '0' - 1;
+            ) :
+            (c < 37) ? (
+                c += 'A' - 11;
+            ) :
+            (c < 63) ? (
+                c += 'a' - 37;
+            ) :
+            (
+                c = '_';
+            );
+            mSL_wa1[ip] = c; ip += 1;
+        );
+    );
+
+    (ip <= 1) ? (
+        sprintf(strr, "%c", c[0]);
+    ) :
+    (ip == 2) ? (
+        sprintf(strr, "%c%c", mSL_wa1[1], mSL_wa1[0]);
+    ) :
+    (ip == 3) ? (
+        sprintf(strr, "%c%c%c", mSL_wa1[2], mSL_wa1[1], mSL_wa1[0]);
+    ) :
+    (ip == 4) ? (
+        sprintf(strr, "%c%c%c%c", mSL_wa1[3], mSL_wa1[2], mSL_wa1[1], mSL_wa1[0]);
+    ) :
+    (ip == 5) ? (
+        sprintf(strr, "%c%c%c%c%c", mSL_wa1[4], mSL_wa1[3], mSL_wa1[2], mSL_wa1[1], mSL_wa1[0]);
+    ) :
+    (ip == 6) ? (
+        sprintf(strr, "%c%c%c%c%c%c", mSL_wa1[5], mSL_wa1[4], mSL_wa1[3], mSL_wa1[2],
+                mSL_wa1[1], mSL_wa1[0]);
+    ) :
+    (ip == 7) ? (
+        sprintf(strr, "%c%c%c%c%c%c%c", mSL_wa1[6], mSL_wa1[5], mSL_wa1[4], mSL_wa1[3],
+                mSL_wa1[2], mSL_wa1[1], mSL_wa1[0]);
+    ) :
+    (
+        sprintf(strr, "%c%c%c%c%c%c%c%c", mSL_wa1[7], mSL_wa1[6], mSL_wa1[5], mSL_wa1[4],
+                mSL_wa1[3], mSL_wa1[2], mSL_wa1[1], mSL_wa1[0]);
+    );
+    strr;
+);

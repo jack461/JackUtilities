@@ -19,7 +19,7 @@ After using such a version for a few developments, I found I needed a more elabo
 The memory layout of such a block is therefore:
 [code][ type | size | word0 | word1 | ... | last_word | size | ~type ][/code]
 Finally, note that all allocated blocks are continuous in memory, constituing a sequence of blocks, sequence which is itself surrounded by specific one word length begin and end markers.
-While this organization implies an overhead of four words for each allocated block, we'll see later that such a construct helps debugging and manipulating arrays as first class citizen. For the record, in a programming language an item is a "first class citizen" if:
+While this organization implies an overhead of four words for each allocated block, note that all blocks are contiguous in memory, so blocks control words act implicitely as a double chained list. We'll see later that such a construct helps debugging and manipulating arrays as first class citizen. For the record, in a programming language an item is a "first class citizen" if:
 [list]
 [*]it can be passed as a parameter to a function
 [*]it can be returned as a result of a function

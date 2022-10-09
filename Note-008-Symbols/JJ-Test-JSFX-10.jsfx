@@ -1,0 +1,45 @@
+desc:JJ-Test-JSFX-10
+/*
+    Testing symbols codification
+*/
+
+
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import JackUtilities/mSL_Symbols.jsfx-inc
+
+@init
+
+mSL_StM_Init(8);
+mSL_init_symbols();
+
+
+s01 = mSL_symbol("Symbol1");
+s02 = mSL_symbol("Symbol2");
+s03 = mSL_symbol("This_one_is_pretty_long");
+s04 = mSL_symbol("This_one_is_pretty_long"); // same symbol, same codification than s03
+// Some variations around s03
+s05 = mSL_symbol("This_one_is_pretty_long_too");
+s06 = mSL_symbol("This_one_is_also_pretty_long");
+s07 = mSL_symbol("This_one_is_prretty_long");
+s08 = mSL_symbol("This_one_it_pretty_long");
+s09 = mSL_symbol("This_One_it_pretty_long");
+s10 = mSL_symbol("This_One_is_pretty_long");
+s11 = mSL_symbol("This_one_is_prrettylong");
+s12 = mSL_symbol("This_one_Is_pretty_Long");
+s13 = mSL_symbol("This_one_ispretty_long");
+s14 = mSL_symbol("This_is_a_long_symbol");
+
+strcpy(#s01, mSL_id2Str(s01));
+strcpy(#s02, mSL_id2Str(s02));
+strcpy(#s03, mSL_id2Str(s03));
+strcpy(#s04, mSL_id2Str(s04));
+strcpy(#s05, mSL_id2Str(s05));
+strcpy(#s06, mSL_id2Str(s06));
+strcpy(#s07, mSL_id2Str(s07));
+strcpy(#s08, mSL_id2Str(s08));
+strcpy(#s09, mSL_id2Str(s09));
+strcpy(#s10, mSL_id2Str(s10));
+strcpy(#s11, mSL_id2Str(s11));
+strcpy(#s12, mSL_id2Str(s12));
+strcpy(#s13, mSL_id2Str(s13));
+strcpy(#s14, mSL_id2Str(s14));

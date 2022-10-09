@@ -1,0 +1,102 @@
+[b]Symbols[/b]
+
+Why should we talk about [i]symbols[/i], as this sort of notion doesn't exist in JS ? Of course, because we're going to implement that, and you can find some utility for it.
+
+Symbols were first introduced in Lisp (1962) as a way to concretely represent abstracts concepts. In Lisp (or Scheme), a symbol is a sequence of characters preceded by a single quote: [b]'symbol[/b]. Quote can also introduce a list of symbols, like [b]'(north south east west)[/b]. Symbols have proved since that time to be quite a useful addition to programming languages, in order to denote symbolic concepts, enumerations, symbolic structures, etc. Symbols are [i]first class citizen[/i] values, like numbers, which means that they can be passed to functions, returned from a function, etc. Symbols have an external representation, which is (assimilated to) a string of characters, and an internal codification. In particular, symbols with the same external representation are represented by the same internal codification. Operations on symbols are [i]equal[/i] and [i]not-equal[/i], and, generally speaking, all operations on symbols are expected to be quite efficient. 
+
+Implementation of symbols is typically the following one:
+[list][*]a symbol is externally represented by a sequence of characters (a string),
+[*]when a symbol is found by the parser of the language, its external representation is looked for in a "symbol table". If not found, it is introduced in it. The entry number is the "codification" of the symbol. So, the same external representation always results in the same internal codification,
+[*]the comparison (equality or inequality) of two symbols is straitforward, and doesn't imply a character by character comparison.
+[/list]
+
+While Lisp symbols may contain almost any character, when I decided to implement a symbol library, I found, for various practical reasons, more interesting to limit them to classical "identifiers", i.e. a sequence of letters, digits and underline "_" character, sequence beginning with a letter or an "_". This is a very classical set of characters which has been used for dozen of years in programming languages, and which, when we add the "space", gives exactly 64 different chars. This is convenient, as any element of the set can be represented on 6 bits. As we have already seen, a double lets you represent at least 48 bit integers, so we can pack up to 8 elements of this set in a double word. The algorithm used is to pad the identifier with spaces at the end, up to 8 chars, and to code the string according to the following order: [b]" 0123456789ABCD...Zabcd...z_"[/b]. The result is a number, which is a perfect codification of the symbol, since two symbols with the same external representation are codified by the same number, and two symbols with different representations get different codifications. The case of letters (lowercase or uppercase) is therefore significent.
+
+I used this approach for a while, but I found that the limitation to 8 characters was sometimes too restrictive. On the other hand, strings in JSFX are a scarse resource, and I prefered not tu use them. So I decided to try the "mp3" approach, i.e. to compact a longer string to 8 chars. We effectively loose [i]unicity[/i] of symbols, in the sense that coding two different "long" symbols may result in the same value, but this ends to be rare enough not to be a problem. 
+
+How does this compaction work? Various heuristics are applied to the string, replacing some sequences by shorter ones, suppressing "redondencies", etc. You will find the code in the function "mSL_compact". Here are some properties of the algorithms:
+[list][*]any symbol, whatever its length is, is represented by a single integer codification, in the [0 ... 2^48-1] range, and uses no additional memory. This codification is "universal", i.e. independent of the past of the computations and of the instantiation of the current plugin,
+[*]all symbols of 8 chars or less have different codifications.
+[*]any symbol of 8 chars or less has a codification different from any symbol of more than 8 chars,
+[*]it is very unlikely (although quite possible) that two more than 8 chars different symbols have the same codification.
+[list]
+
+[b]The operations[/b]
+
+The [i]mSL_Symbols.jsfx-inc[/i] library provides the following operations:
+[list]
+[*][b]mSL_init_symbols()[/b]: this initializes the various global variables and arrays used by the library. It should be called once, in the "@init" section, before other symbols operations.
+[*][b]mSL_symbol(string)[/b]: return a number, the codification of the symbol whose external representation is passed as a string parameter.
+[*][b]mSL_id2Str(code)[/b]: returns a [i]temporary[/i] string, which is an external representation of the codification passed as parameter. For symbols of more than 8 chars, the result is a 8 chars string, which is the representation of the [i]packed[/i] symbol, and so has nothing to do with the initial external representation of the symbol.
+[/list]
+[code]
+sym = mSL_symbol("This_is_a_long_symbol");  // ==> 35861945302135
+strcpy(#str, mSL_id2Str(sym));    // ==>  "78s1Vgms"
+[/code]
+Since symbols are represented by numbers, you don't need special operations to compare symbols: just use [b]===[/b] and [b]!==[/b] for equality and inequality. 
+
+[b]Using the library[/b]
+
+The symbols library uses the static memory allocator, described in [url=https://forum.cockos.com/showthread.php?p=2601042#post2601042]Static memory (revisited) and external libraries[/url], and available from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-007-Static-Memory-Revisited]JackUtilities github Note-007[/url], under the name  "mSL_StM_Memory.jsfx-inc". The symbols library is available from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-008-Symbols]JackUtilities github Note-008[/url], under the name "mSL_Symbols.jsfx-inc".
+
+In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create a new folder, that you will name "JackUtilities". Get the files "mSL_StM_Memory.jsfx-inc" and "mSL_Symbols.jsfx-inc", and install them in "JackUtilities".
+
+Import the files in your JSFX plug-in with "import JackUtilities/mSL_StM_Memory.jsfx-inc", followed by "import JackUtilities/mSL_Symbols.jsfx-inc", and in the "@init" section, initialize the memory manager by "mSL_StM_Init();" to start the allocation at the first word of the memory, or by "mSL_StM_Init(100);" to start at address 100, etc., then call "mSL_init_symbols();"
+
+Here is an example of a JSFX performing the coding of a few symbols:
+[code]
+desc:JJ-Test-JSFX-10
+/*
+    Testing symbols codification
+*/
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import JackUtilities/mSL_Symbols.jsfx-inc
+
+@init
+mSL_StM_Init(8); // arbitrarilly start allocating at address 8
+mSL_init_symbols();
+
+s01 = mSL_symbol("Symbol1");
+s02 = mSL_symbol("Symbol2");
+s03 = mSL_symbol("This_one_is_pretty_long");
+s04 = mSL_symbol("This_one_is_pretty_long"); // same symbol, same codification than s03
+// Some variations around s03
+s05 = mSL_symbol("This_one_is_pretty_long_too");
+s06 = mSL_symbol("This_one_is_also_pretty_long");
+s07 = mSL_symbol("This_one_is_prretty_long");
+s08 = mSL_symbol("This_one_it_pretty_long");
+s09 = mSL_symbol("This_One_it_pretty_long");
+s10 = mSL_symbol("This_One_is_pretty_long");
+s11 = mSL_symbol("This_one_is_prrettylong");
+s12 = mSL_symbol("This_one_Is_pretty_Long");
+s13 = mSL_symbol("This_one_ispretty_long");
+s14 = mSL_symbol("This_is_a_long_symbol");
+
+strcpy(#s01, mSL_id2Str(s01));
+strcpy(#s02, mSL_id2Str(s02));
+strcpy(#s03, mSL_id2Str(s03));
+strcpy(#s04, mSL_id2Str(s04));
+strcpy(#s05, mSL_id2Str(s05));
+strcpy(#s06, mSL_id2Str(s06));
+strcpy(#s07, mSL_id2Str(s07));
+strcpy(#s08, mSL_id2Str(s08));
+strcpy(#s09, mSL_id2Str(s09));
+strcpy(#s10, mSL_id2Str(s10));
+strcpy(#s11, mSL_id2Str(s11));
+strcpy(#s12, mSL_id2Str(s12));
+strcpy(#s13, mSL_id2Str(s13));
+strcpy(#s14, mSL_id2Str(s14));
+[/code]
+You can verify that, except for s03 and s04 which are intentionally identical, all the "sxx" codifications are different, and the "#sxx" strings give you an (equivalent) overview of the codifications of these symbols.
+
+[b]So...[/b]
+
+So I think that most of our objectives have been reached. Any string can be turned into a symbol, and, while we may have collisions of symbols (because a potentially infinite number of strings is compacted in 2^48 integers), symbols are (almost) uniquely represented by a single value, with no additionnal structure required. Also, comparisons of symbols is just a comparison of numbers, so it is quite fast. We'll see later how these symbols may be used for various purposes.
+
+All the best !
+
+J. Jack.
+
+Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-008-Symbols]JackUtilities github Note-008[/url].
+
+[b]TL;DR summary:[/b] symbols: a useful data type...
