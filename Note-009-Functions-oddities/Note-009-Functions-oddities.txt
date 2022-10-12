@@ -1,0 +1,140 @@
+[b]Introduction[/b]
+
+I don't have a lot to say about functions. Beyond the [url=http://reaper.fm/sdk/js/userfunc.php#js_userfunc]short description[/url] that you find in the JSFX Programming Reference on the REAPER site, here are a few observations.
+
+[b]Functions and their environments[/b]
+
+Let's use the habitual terminology: function [u]parameters[/u] are the [i]names[/i] listed in the function's definition, function [u]arguments[/u] are the [i]values[/i] passed to the function. Parameters of functions are initialized with the values supplied as arguments to the function when the function is called.
+The parameters are local to the function: modifying them has an effect inside the function, but not outside of it: [code]function tst1(x) (
+    x = 745;
+);
+a = 233;
+b = tst1(a); // ==> 745
+c = a; // a is still 233[/code]This is what is called the "passing by value" mechanism, and is the most common form of argument passing.
+
+However, you can pass the "address", or the "reference" of a variable, by adding a "*" after the name of the formal parameter:[code]function tst2(x*) (
+    x = 745;
+);
+a = 233;
+b = tst2(a); // ==> 745
+c = a; // a is now 745[/code]This is what is called the "passing by reference" mechanism. The argument [i]must[/i] be the name of a [i]variable[i]. A "memory" address, such as "tab[5]" or "gmem[3]" is not accepted.
+
+The "local" keyword allows the declaration of additionnal variables (including string names, like "#str"). These variables are attached to the function, and their values, initially zeroes, are retained from one call to another. This feature is used by some JSFX. As an example, the "tst3" function returns the value of the argument of its previous call:[code]function tst3(u)
+local (x, y)
+(
+    x = y;
+    y = u;
+    x;
+);
+a = tst3(215);  // ==> 0
+b = tst3(521);  // ==> 215
+c = tst3(823);  // ==> 521[/code]Note that "static" is a synonym of "local".
+
+Functions can access their local variables, but also all the global variables, with the inconvenient that if you mispell the name of a global variable, this "new" variable will be created, and no error is signalled.[code]counter = 0;
+function tst4()
+(
+    cuonter = counter + 1;
+);
+a = tst4();
+b = tst4();
+c = tst4(); [/code]Here, the global variable "counter" is mispelled, and the function always returns the value "1".
+
+But you can prevent that by using the "global" keyword. This one allows you to define the names of the global variables that your function is allowed to access. This may prevent some errors:[code]function tst5()
+global (counter)
+(
+    cuonter = counter + 1;
+);[/code]Now, the error is signalled: "@init:47 global 'cuonter' inaccessible..."
+
+[b]Overloading[/b]
+
+JSFX provides a kind of function overloading, i.e. a feature where two or more functions can have the same names, but parameters that differ by their count or their type. Since we have a single datatype in JSFX, the functions can only differ by their number of parameters:[code]function tst6(x) (x+1;);
+function tst6(x,y) (x+y;);
+a = tst6(7);     // ==> 8
+b = tst6(5,12);  // ==> 17
+c = tst6();      // ==> 1[/code]
+Note the specificity of the one parameter function: it can be called with no parameter, the missing value being replaced by 0. However, you [i]can't[/i] define with the same name a function without parameter and a one parameter function. While this is accepted by the compiler, the [i]last[/i] definition (in the source code) replaces the previous one.
+
+[b]Recursion in 4 steps...[/b]
+
+Recursivity in JSFX ? No, really, this is a joke. But read that.
+
+[i]Step 1[/i]
+Consider the following sequence:[code]function f(x) (x+3);
+a1 = f(5);   // ==> 8
+a2 = f(8);   // ==> 11
+function f(x) (x+8);
+b1 = f(5);   // ==> 13
+b2 = f(8);   // ==> 16[/code]This shows that a function can be defined, then used (a1, a2), then redefined, then again used(b1, b2) with its new definition. This new definition has replaced the previous code for the function ("previous" in the source code order).
+
+[i]Step 2[/i]
+Let's complicate a little more:[code]function f(x) (x+3);
+a1 = f(5);   // ==> 8
+a2 = f(8);   // ==> 11
+function g(x) (100+f(x));
+a3 = g(5);   // ==> 108
+a4 = g(8);   // ==> 111
+function f(x) (x+8);
+b1 = f(5);   // ==> 13
+b2 = f(8);   // ==> 16
+b3 = g(5);   // ==> 108
+b4 = g(8);   // ==> 111[/code]Now, this is interesting. As the results show, the "g" function has kept an internal reference to the "first" definition of the "f" function, even after this one has been redefined.
+
+[i]Step 3[/i]
+Let's concentrate on the first part of the last example, and change a single letter in the definition of the "g" function: [code]function f(x) (x+3);
+a1 = f(5);   // ==> 8
+a2 = f(8);   // ==> 11
+function f(x) (100+f(x));
+a3 = f(5);   // ==> 108
+a4 = f(8);   // ==> 111[/code]So nice ! The "f" function calls itself, and it works... Or does it? Well... It calls the previous definition of itself...
+
+[i]Step 4[/i]
+So let's go as far as we can. Have you ever dreamed of using a recursive definition of, for example, the fibonacci function in JSFX? Well, you can. Almost.[code]function fib(x) (1);
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+
+a1 = fib(1);       // => 1
+a2 = fib(2);       // => 2
+a3 = fib(3);       // => 3
+a4 = fib(4);       // => 5
+a5 = fib(5);       // => 8
+a8 = fib(8);       // => 13
+a12 = fib(12);     // => 233
+a15 = fib(15);     // => 987
+a18 = fib(18);     // => 4181
+a23 = fib(23);     // => 46368
+a24 = fib(24);     // => 75025
+a25 = fib(25);     // => 121393[/code]Remember, the value of the result is also the number of "recursive" calls executed. Isn't JSFX a nice language ?
+
+[b]So...[/b]
+
+I'm not sure that you can really use - in a practical way - the informations in this note, but it was fun to write. And maybe you know now a little more about the behavious of functions in JSFX.
+
+Thanks for your interest !
+
+J. Jack.
+
+Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Functions-oddities]JackUtilities github Note-009[/url].
+
+[b]TL;DR summary:[/b] a description of a quite basic, but possibily useful, static memory allocator.

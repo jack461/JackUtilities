@@ -9,7 +9,6 @@ Implementation of symbols is typically the following one:
 [*]when a symbol is found by the parser of the language, its external representation is looked for in a "symbol table". If not found, it is introduced in it. The entry number is the "codification" of the symbol. So, the same external representation always results in the same internal codification,
 [*]the comparison (equality or inequality) of two symbols is straitforward, and doesn't imply a character by character comparison.
 [/list]
-
 While Lisp symbols may contain almost any character, when I decided to implement a symbol library, I found, for various practical reasons, more interesting to limit them to classical "identifiers", i.e. a sequence of letters, digits and underline "_" character, sequence beginning with a letter or an "_". This is a very classical set of characters which has been used for dozen of years in programming languages, and which, when we add the "space", gives exactly 64 different chars. This is convenient, as any element of the set can be represented on 6 bits. As we have already seen, a double lets you represent at least 48 bit integers, so we can pack up to 8 elements of this set in a double word. The algorithm used is to pad the identifier with spaces at the end, up to 8 chars, and to code the string according to the following order: [b]" 0123456789ABCD...Zabcd...z_"[/b]. The result is a number, which is a perfect codification of the symbol, since two symbols with the same external representation are codified by the same number, and two symbols with different representations get different codifications. The case of letters (lowercase or uppercase) is therefore significent.
 
 I used this approach for a while, but I found that the limitation to 8 characters was sometimes too restrictive. On the other hand, strings in JSFX are a scarse resource, and I prefered not tu use them. So I decided to try the "mp3" approach, i.e. to compact a longer string to 8 chars. We effectively loose [i]unicity[/i] of symbols, in the sense that coding two different "long" symbols may result in the same value, but this ends to be rare enough not to be a problem. 
@@ -53,7 +52,7 @@ import JackUtilities/mSL_StM_Memory.jsfx-inc
 import JackUtilities/mSL_Symbols.jsfx-inc
 
 @init
-mSL_StM_Init(8); // arbitrarilly start allocating at address 8
+mSL_StM_Init(8); // arbitrarily start allocating at address 8
 mSL_init_symbols();
 
 s01 = mSL_symbol("Symbol1");

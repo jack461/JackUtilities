@@ -1,0 +1,73 @@
+desc:JJ-Test-JSFX-Functions-2
+
+@init
+
+
+function f(x) (x+3);
+a1 = f(5);   // ==> 8
+a2 = f(8);   // ==> 11
+function f(x) (x+8);
+b1 = f(5);   // ==> 13
+b2 = f(8);   // ==> 16
+
+
+function f(x) (x+3);
+a1 = f(5);   // ==> 8
+a2 = f(8);   // ==> 11
+function g(x) (100+f(x));
+a3 = g(5);   // ==> 108
+a4 = g(8);   // ==> 111
+function f(x) (x+8);
+b1 = f(5);   // ==> 13
+b2 = f(8);   // ==> 16
+b3 = g(5);   // ==> 108
+b4 = g(8);   // ==> 111
+
+
+function f(x) (x+3);
+a1 = f(5);   // ==> 8
+a2 = f(8);   // ==> 11
+function f(x) (100+f(x));
+a3 = f(5);   // ==> 108
+a4 = f(8);   // ==> 111
+
+
+function fib(x) (1);
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+function fib(x) ( (x < 2) ? 1 : fib(x-1) + fib(x-2) );
+
+a1 = fib(1);       // => 1
+a2 = fib(2);       // => 2
+a3 = fib(3);       // => 3
+a4 = fib(4);       // => 5
+a5 = fib(5);       // => 8
+a8 = fib(8);       // => 13
+a12 = fib(12);     // => 233
+a15 = fib(15);     // => 987
+a18 = fib(18);     // => 4181
+a23 = fib(23);     // => 46368
+a24 = fib(24);     // => 75025
+a25 = fib(25);     // => 121393
+

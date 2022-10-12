@@ -1,0 +1,54 @@
+desc:JJ-Test-JSFX-Functions-1
+
+@init
+
+
+function tst1(x) (
+    x = 745;
+);
+
+a = 233;
+b = tst1(a); // ==> 745
+c = a; // a is still 233
+
+function tst2(x*) (
+    x = 745;
+);
+
+a = 233;
+b = tst2(a); // ==> 745
+c = a; // a is now 745
+
+function tst3(u)
+local (x, y)
+(
+    x = y;
+    y = u;
+    x;
+);
+
+a = tst3(215);  // ==> 0
+b = tst3(521);  // ==> 215
+c = tst3(823);  // ==> 521
+
+counter = 0;
+function tst4()
+(
+    cuonter = counter + 1;
+);
+a = tst4();
+b = tst4();
+c = tst4();
+
+
+function tst5()
+// global (counter)
+(
+    cuonter = counter + 1;
+);
+
+function tst6(x) (x+1;);
+function tst6(x,y) (x+y;);
+a = tst6(7);     // ==> 8
+b = tst6(5,12);  // ==> 17
+c = tst6();      // ==> 1
