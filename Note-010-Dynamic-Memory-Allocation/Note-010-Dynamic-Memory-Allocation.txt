@@ -1,0 +1,66 @@
+[b]Introduction[/b]
+
+I introduce here a dynamic memory allocation, which can allocate and free arrays on demand. This allocator has many good properties: it works in O(1), both for allocation and desallocation of memory blocks. It merges continuous free blocks to build larger free blocks. It can be dynamically checked at run-time, and has been tested on various applications. 
+
+[b]The interface[/b]
+
+The defined operations are the following:
+[list]
+[*][b]mSL_Dyn_Init(address, size)[/b]: define the memory [i]address[/i] of the first word to be allocated for the memory manager, and the total [i]size[/i] of this area. This area is returned as a "block", as described in my Note 2: [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]A static memory allocator[/url].
+[*][b]mSL_Dyn_Alloc(size,type,flags)[/b]: allocate a new memory block, of size "size", of type "type", according to a set of "flags". The function returns the address of the allocated block, or 0 if it was unable to perform the allocation. The parameter "flags" is an additive combination of the following values:
+[list]
+[*][b]mSL_StM_FlClear[/b]: clear block contents once allocated
+[*][b]mSL_StM_FlAlign[/b]: allocate inside a 64k boundary (useful for arrays used with functions like [b]mdct[/b], [b]fft[/b], etc.)
+[*][b]mSL_StM_FlSigStop[/b]: in case of error (variable mSL_errX not equal to zero), render inoperant any call to the memory manager. This may help discovering a programming error in some very intricate cases...
+[*][b]mSL_StM_FlBCheck[/b]: check the whole memory before allocation
+[*][b]mSL_StM_FlFill[/b]: fill the new block with random garbage. This helps detecting an algorithm implicitely relying on the block being set to zero after allocation.
+[*][b]mSL_StM_FlSigErr[/b]: signal errors to the user, using the "#dbg_desc" feature.
+[/list] 
+[*][b]mSL_Dyn_Free(address)[/b]: free the block whose address is passed as parameter. The function is permissive: if the object is not a valid block, or if it is a block already free, it does nothing. The function returns 1 if the operation has been completed, 0 if an error has been found.
+[/list]
+You can also set the [b]mSL_Dyn_GlobFlgs[/b] variable to a combination of some "mSL_StM_Flxxxx" flags, and it will be used in the mSL_StM_Alloc function. For exemple, set [b]mSL_Dyn_GlobFlgs=mSL_StM_FlFill+mSL_StM_FlSigErr+mSL_StM_FlCheck;[/b] during the tests, then [b]mSL_Dyn_GlobFlgs=0;[/b] when all bugs have been eliminated :).
+
+[b]Using the allocator[/b]
+
+In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create a new folder, that you will name "JackUtilities". Get the file "mSL_Dyn_Memory.jsfx-inc" from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Dynamic-Memory-Allocation]github Note-009[/url], and install it in "JackUtilities". 
+
+Import the file in your JSFX plug-in with "import JackUtilities/mSL_Dyn_Memory.jsfx-inc", and in the "@init" section, initialize the manager by "mSL_Dyn_Init(address, size)", with appropriate values. To use the total size of the memory, for example, you would write "mSL_Dyn_Init(0, __memtop());"
+
+[b]The internals[/b]
+
+Each allocated block has the following layout, which is the same as the one used in the static allocator (described in Note 2):
+[code][ type | size | word0 | word1 | ... | last_word | size | ~type ][/code]
+The header is two words long, and contains the [i]type[/i] and the [i]size[/i] of the block. The "type" is a 4 characters constant, like [b]'data'[/b], [b]'code'[/b], etc. The "size" is the length of the inner part, without the header and the trailer. The trailer is also two words long, and contains the [i]size[/i] and the [i]~type[/i] of the block - this notation, "~type" represents the JS value "0x7FFFFFFF~type".
+
+This organization has been adopted to simplify the debugging of new codes. Most errors linked to arrays involve writing in memory before the start of the array, or after its last element. The control words help checking the correctness of a block, or crawling the whole chain of allocated blocks. The redondency between the header and the trailer makes it easy to discover programming errors.
+
+Here are some other aspects of the implementation:
+[list=1]
+[*]The allocator use a single continuous block of memory. Such a block can be provided by the static allocator previously described in my Note 2: [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]A static memory allocator[/url].
+[*]The allocator uses about two hundred words at the beginning of the memory area, for managing its operations, the rest constituing a unique large free block. As more and more allocations are performed, this block is fragmented, as needed, in smaller blocks.
+[*]The size of the block resulting from a call to "mSL_Dyn_Alloc" is exactly the size requested by the program.
+[*]All blocks (free or used) are contiguous in memory, so there is no need to explicitely chain them.
+[*]Allocated blocks are not chained. Their only characteristic is that their address is within the bounds of the memory managed by the allocator.
+[*]There are never two consecutive free blocks in memory, since consecutive free blocks are merged together at desallocation.
+[*]A free block has the specific type [i]free block[/i], of value "mSL_MT_FreeSt", and is a member of a double linked list. 
+[*]There may be up to 40 or 50 such lists, each one dedicated to a specific range of sizes, these sizes being in an exponential progression (from blocks of size 8 to 11, 12 to 15, 16 to 23, 24 to 31, ..., 96 to 127, 128 to 191, ..., up to 25165824 to 33554431 and 33554432 to 50331647)
+[*]When a block of size "N" is needed, it is taken from the first non empty list of blocks of size non smaller than "N". The first (or last, if the "mSL_StM_FlAlign" option is specified - see point 12) block of the list is used, and, if its size is greater than what is needed, it is fragmented in a block of size exactly equal to what was requested, the rest being structured as a new free block, which is introduced in the appropriate free list. To represent a free block, we need at least 6 words of memory, and we decided that the smallest size of a free block would be 8. When the size to free is less than that, each word to free is filled with a special marker, "mSL_Filler", which means "free block of size one word". However, blocks of any size, from 0 to the maximum available size can be allocated.
+[*]When a block is freed (either, as described, implicitely as an unused part of a block after an allocation, or explicitely by a call to "mSL_Dyn_Free"), the allocator tries to merge it with the preceding and following blocks if these ones are free. 
+[*]Since we used double linked list to chain free blocks, insertions and suppressions, whatever the position of the block in the list is, are performed in O(1). So is the fusion of free blocks, since we never have to consider more than the preceding or the following block. 
+[*]Some blocks may have the property that they are fully contained in a 64k boundary area. Such free blocks are inserted in the [i]tail[/i] of their appropriate free list, other blocks are inserted in the [i]head[/i]. Any block of size greater than 64k, and requesting the "mSL_StM_FlAlign" property, will start exactly on a 64k boundary. Therefore you can request, for example, 192k, and use the allocated area as 3 consecutive buffers of 64k aligned on a 64k boundary.
+[*]Note also that both allocation and desallocation of blocks have to find the appropriate list of free blocks, but this task is limited to about 50 comparisons (and could be optimized by replacing it with a log search) executed in a tight loop. So this operation, being independent of the total number of managed blocks, is also considered to be in O(1).
+[/list]
+Tests show that the time spend for an allocation or a desallocation (on my machine, a 2013 MacBook with a Core i7 at 2.3 GHz - tests done with 10000 to 100000 active blocks, and hundreds of millions calls), [i]independently of the size of the memory and the number or the sizes of free or active blocks[/i], is strictly bounded, each operation taking less than 0.5 micro-seconds. For the allocation of large blocks with the "mSL_StM_FlClear" option, add the time of the "memset" operation for the block, which can be 2 to 50 times greater than the allocation itself (1 to 20 or 30 micro-seconds). All in all, the allocator performs decently well, and is quite appropriate to the context of a JSFX, which has to obey to real-time constraints. 
+
+[b]Going further...[/b]
+
+To learn a little more about practical dynamic memory allocation, look at this description of the [url=https://sourceware.org/glibc/wiki/MallocInternals]gnu malloc internals[/url]. While quite different, for various raisons, from our own algorithm, it gives an excellent insight of what is a "good" memory manager.
+
+
+All the best !
+
+J. Jack.
+
+Get text and code in my [url=url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Dynamic-Memory-Allocation]JackUtilities github Note-002[/url].
+
+[b]TL;DR summary:[/b] a description of a dynamic memory allocator.

@@ -137,4 +137,6 @@ J. Jack.
 
 Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Functions-oddities]JackUtilities github Note-009[/url].
 
-[b]TL;DR summary:[/b] a description of a quite basic, but possibily useful, static memory allocator.
+[b]TL;DR summary:[/b] about functions, but nothing really practical :-(
+
+[i]Back to the [url=https://forum.cockos.com/showthread.php?p=2597175#post2597175]Table of contents[/url].[/i]
