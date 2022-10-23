@@ -1,0 +1,190 @@
+desc:JJ-Test-JSFX-Dyn-1
+
+/*
+    Dynamic Memory test
+    
+    Perform a lot of alloc(s) and free(s), with up to "AA_tabsiz" blocks
+    simultaneously active.
+    
+    BEWARE! Run time is about 2' before the JSFX displays anything...
+    
+    After a run, the value "AA_all_OK" should be equal to 1, and "AA_afDur" is an estimation,
+    in microseconds, of the duration of an alloc or a free operation.
+    
+    This value is about 0.43 microseconds on a 2013 2.3GHz Core i7 MacBook Pro.
+    
+    Since the test is based on a difference of clock-times, it should be run with no other
+    application active.
+    
+    Description
+      The test uses a table of size "AA_tabsiz", initially empty.
+      It performs a loop, where it chooses a random entry in the table.
+      When the entry is "0", it allocates a block of random size, and keeps its address in the entry.
+      If the entry is not zero, it is the address of a block previously allocated, and the
+      algorithm frees the block, and puts "0" in the entry.
+      After a while, about half of the entries contain a block address.
+      Various couples of values (table size and block size) are proposed, in the
+      variables "AA_tabsiz" and "AA_blsize".
+      
+      Use the "magic comment sequence" which is "//*/" to select such couples.
+      Suppress the first "/" (giving "/*/") to comment up to the next magic sequence.
+      Add a "/" to  "/*/", giving "//*/", to uncomment up to the next magic sequence.
+      (( Note: the "magic comment sequence" is (c)(TM) Jack461 since 1983 ))
+*/
+options:maxmem=33554432
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import JackUtilities/mSL_Dyn_Memory.jsfx-inc
+import JackUtilities/mSL_Mem_Dbg.jsfx-inc
+
+@init
+
+// Modify random
+loop (time()%10000, rand(1000));
+AA_tabsiz = AA_blsize = 10; // default values, changed later
+
+
+// Initialize
+mSL_StM_Init(10);
+
+chk1 = mSL_StM_Check(); // check the (empty) memory
+
+// the number of tests is (loopcnt * loopmul) which should be equal to AA_count in the end
+loopcnt = 20000;
+loopmul = 10000;
+
+
+/*/
+AA_tabsiz =  606606; // number of entries in the table
+AA_blsize = 113; //testing with a lot of small sized blocks (in 11 - 113 words)
+//*/
+
+//*/
+AA_tabsiz =  202202; // number of entries in the table
+AA_blsize = 334; //testing with a lot of small sized blocks (in 11 - 330 words)
+//*/
+
+/*/
+AA_tabsiz =  10101; // number of entries in the table
+AA_blsize = 7334; //testing with many medium sized blocks (in 11 - 7300 words)
+//*/
+
+/*/
+AA_tabsiz =  1001; // number of entries in the tables
+AA_blsize = 30317; //testing with some large sized blocks (in 11 - 30000 words)
+//*/
+
+/*/
+AA_tabsiz =  101; // number of entries in the tables
+AA_blsize = 130031; //testing with some very large sized blocks (in 11 - 130000 words)
+//*/
+
+add0 = __memtop();
+tabadd = add1 = mSL_StM_Alloc(AA_tabsiz, 'data', mSL_StM_FlClear);
+
+
+add5 = mem = mSL_StM_BlockStart('XXXX');
+chk2 = mSL_StM_Check(); // check the static memory
+chk3 = mSL_StM_Check(mem);
+are = mSL_Dyn_Init(mem-2, mem[-1]+4);
+
+are1 = are[-2];
+AA_memsize = are2 = are[-1]; // total allocable size
+are3 = are[are2];
+are4 = are[are2+1];
+are5 = (are1 ~ are4) - 0x7FFFFFFF;
+
+
+chk4 = mSL_StM_Check(mem); // check the static memory block "mem"
+chk5 = mSL_StM_Check(); // check the whole static memory
+chk6 = mSL_Dyn_Check(314); // check the dynmic memory, and verify there is a single free block
+
+/*
+    First, perform the test loops, without calling the memory operations
+*/
+
+AA_alloc = AA_free = AA_missed = AA_fail = AA_count = 0;
+zzzstart = time_precise();
+
+loop(loopmul,
+    loop(loopcnt,
+        i = 0|rand(AA_tabsiz); // choose a random entry
+        j = 11|rand(AA_blsize); // choose a random block size
+        (m = tabadd[i]) == 0 ? (
+            tabadd[i] = m = j; // mSL_Dyn_Alloc(j, 'data', 0);
+            AA_alloc += 1;
+            (m == 0) ? AA_missed += 1;
+        ) : (
+            // mSL_Dyn_Free(m); 
+            tabadd[i] = 0;
+            AA_free += 1;
+        );
+        AA_count += 1;
+    );
+);
+
+
+i=0; loop (AA_tabsiz,
+    (m = tabadd[i]) != 0 ? (
+        // mSL_Dyn_Free(m); 
+        tabadd[i] = 0;
+        AA_free += 1;
+    );
+    i += 1;
+);
+
+zzzend = time_precise();
+
+zzzloop = zzzend - zzzstart;
+
+/*
+    Now, perform the same loops,with the memory operations
+
+*/
+AA_alloc = AA_free = AA_missed = AA_fail = AA_count = 0;
+zzzstart = time_precise();
+
+loop(loopmul,
+    loop(loopcnt,
+        i = 0|rand(AA_tabsiz); // choose a random entry
+        j = 11|rand(AA_blsize); // choose a random block size in 11 - AA_blsize
+        (m = tabadd[i]) == 0 ? (
+            tabadd[i] = m = mSL_Dyn_Alloc(j, 'data', 0);
+            AA_alloc += 1;
+            (m == 0) ? AA_missed += 1;
+        ) : (
+            mSL_Dyn_Free(m);
+            tabadd[i] = 0;
+            AA_free += 1;
+        );
+        AA_count += 1;
+    );
+);
+
+
+i=0; loop (AA_tabsiz,
+    (m = tabadd[i]) != 0 ? (
+        (!mSL_Dyn_Free(m)) ? (
+          AA_fail += 1;
+        );
+        tabadd[i] = 0;
+        AA_free += 1;
+    );
+    i += 1;
+);
+
+zzzend = time_precise();
+        
+chk7 = mSL_StM_Check(); // check the static memory
+chk10 = mSL_Dyn_Check(315); // check we now have a single free block in memory
+chk12 = mSL_errX ;
+AA_duration = zzzend - zzzstart - zzzloop; // only the memory operations
+
+// Mean duration of alloc or free operations
+//   (the result is multiplied by 1000000, so AA_afDur is actually a value in microseconds)
+
+AA_afDur = AA_duration / (AA_alloc + AA_free) * 1000000;
+
+// And in the end, the allocation you take is equal to the free you make...
+
+AA_all_OK = (AA_alloc === AA_free) && (AA_missed === 0)
+           && (AA_count === loopcnt * loopmul) && (chk10 === 1);

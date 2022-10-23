@@ -22,9 +22,11 @@ You can also set the [b]mSL_Dyn_GlobFlgs[/b] variable to a combination of some "
 
 [b]Using the allocator[/b]
 
-In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create a new folder, that you will name "JackUtilities". Get the file "mSL_Dyn_Memory.jsfx-inc" from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Dynamic-Memory-Allocation]github Note-009[/url], and install it in "JackUtilities". 
+In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create a new folder, that you will name "JackUtilities". Get the file "mSL_Dyn_Memory.jsfx-inc" from my [url=https://github.com/jack461/JackUtilities/tree/main/Note-010-Dynamic-Memory-Allocation]github Note-010[/url], and install it in "JackUtilities". 
 
 Import the file in your JSFX plug-in with "import JackUtilities/mSL_Dyn_Memory.jsfx-inc", and in the "@init" section, initialize the manager by "mSL_Dyn_Init(address, size)", with appropriate values. To use the total size of the memory, for example, you would write "mSL_Dyn_Init(0, __memtop());"
+
+The file "JJ-Test-JSFX-Dyn-1.jsfx" is a JSFX example of using the dynamic memory (and an additionnal file, "mSL_Mem_Dbg.jsfx-inc" which contains additionnal debug functions), with which you can test the performances of the allocatior on a few configurations.
 
 [b]The internals[/b]
 
@@ -50,17 +52,16 @@ Here are some other aspects of the implementation:
 [*]Some blocks may have the property that they are fully contained in a 64k boundary area. Such free blocks are inserted in the [i]tail[/i] of their appropriate free list, other blocks are inserted in the [i]head[/i]. Any block of size greater than 64k, and requesting the "mSL_StM_FlAlign" property, will start exactly on a 64k boundary. Therefore you can request, for example, 192k, and use the allocated area as 3 consecutive buffers of 64k aligned on a 64k boundary.
 [*]Note also that both allocation and desallocation of blocks have to find the appropriate list of free blocks, but this task is limited to about 50 comparisons (and could be optimized by replacing it with a log search) executed in a tight loop. So this operation, being independent of the total number of managed blocks, is also considered to be in O(1).
 [/list]
-Tests show that the time spend for an allocation or a desallocation (on my machine, a 2013 MacBook with a Core i7 at 2.3 GHz - tests done with 10000 to 100000 active blocks, and hundreds of millions calls), [i]independently of the size of the memory and the number or the sizes of free or active blocks[/i], is strictly bounded, each operation taking less than 0.5 micro-seconds. For the allocation of large blocks with the "mSL_StM_FlClear" option, add the time of the "memset" operation for the block, which can be 2 to 50 times greater than the allocation itself (1 to 20 or 30 micro-seconds). All in all, the allocator performs decently well, and is quite appropriate to the context of a JSFX, which has to obey to real-time constraints. 
+Tests show that the time spend for an allocation or a desallocation (on my machine, a 2013 MacBook with a Core i7 at 2.3 GHz - tests done with 10000 to 100000 active blocks, and hundreds of millions calls), [i]independently of the size of the memory and the number or the sizes of free or active blocks[/i], is strictly bounded, each operation taking less than 0.5 micro-second. For the allocation of large blocks with the "mSL_StM_FlClear" option, add the time of the "memset" operation for the block, which can be 2 to 50 times greater than the allocation itself (1 to 20 or 30 micro-seconds). All in all, the allocator performs decently well, and is quite appropriate to the context of a JSFX, which has to obey to real-time constraints. 
 
 [b]Going further...[/b]
 
 To learn a little more about practical dynamic memory allocation, look at this description of the [url=https://sourceware.org/glibc/wiki/MallocInternals]gnu malloc internals[/url]. While quite different, for various raisons, from our own algorithm, it gives an excellent insight of what is a "good" memory manager.
 
-
 All the best !
 
 J. Jack.
 
-Get text and code in my [url=url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Dynamic-Memory-Allocation]JackUtilities github Note-002[/url].
+Get text and code in my [url=url=https://github.com/jack461/JackUtilities/tree/main/Note-010-Dynamic-Memory-Allocation]JackUtilities github Note-010[/url].
 
 [b]TL;DR summary:[/b] a description of a dynamic memory allocator.

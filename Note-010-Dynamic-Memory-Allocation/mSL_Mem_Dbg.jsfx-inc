@@ -1,0 +1,191 @@
+/*
+    A dynamic memory allocation
+
+*/
+
+
+
+
+@init
+
+
+
+
+//   Check that there is a single free block in memory
+function mSL_Dyn_Check(err)
+global(mSL_current_memory, mSL_mCheckCnt, mSL_errX, mSL_MM_MemSizId, mSL_MM_FrHdId, mSL_MM_FrTlId, mSL_MM_LowAdId, mSL_MM_HighAdId, mSL_MM_LowAd, mSL_End_Mark, mSL_MT_FreeSt, mSL_MM_MemSiz, mSL_Dyn_Flgs)
+local (m, a, flg, flgs)
+(
+    (mSL_errX == 0) ? (
+        mSL_mCheckCnt += 1; m = mSL_current_memory;
+        // Check all conditions
+        flgs = 0;
+        flgs |= 0x1 * (m[mSL_MM_MemSizId] == 'size');
+        flgs |= 0x2 * (m[mSL_MM_FrHdId] == 'frhd');
+        flgs |= 0x4 * (m[mSL_MM_FrTlId] == 'frtl');
+        flgs |= 0x8 * (m[mSL_MM_LowAdId] == 'fmwd');
+        flgs |= 0x10 * (m[mSL_MM_HighAdId] == 'lmwd');
+        a = m + m[mSL_MM_LowAd];
+        flgs |= 0x20 * (a[0] == mSL_End_Mark);
+        flgs |= 0x40 * (a[1] == mSL_MT_FreeSt);
+        flgs |= 0x80 * (a[2] == m[mSL_MM_MemSiz]);
+
+        mSL_Dyn_Flgs = flgs;
+        flg = (flgs === 0xff);
+
+        (!flg) ? mSL_errX = err;
+    );
+    flg;
+);
+
+
+// "dump" utility : used to "manually" and "visually" check the dynamic memory
+function mSL_Dyn_Dump(id)
+local (m, a, s, p, q, tmp, h, ht, st)
+(
+    m = mSL_current_memory;
+    A__a____________________ = 0;
+    A__b_Check_ID = id;
+    A__d01 = m;
+    A__d02 = m[-1];
+    A__d03 = m[-2] == 'memr';
+    A__d04 = m[1];
+    // keep alloc modes
+    A__c__ca = mSL_DA_ca;
+    A__c__hd = mSL_DA_hd;
+    A__c__mz = mSL_DA_mz;
+    A__c__tl = mSL_DA_tl;
+    A__c___alloc = mSL_mallocated;
+    A__c___free = mSL_mfreed;
+    A__c___loop = mSL_DA_loop;
+    A__c___loop_Max = mSL_wa_max;
+    A__c___loop_Mean = mSL_DA_loop / mSL_mallocated;
+    A__c___adur = AA_afDur;
+    A__d____________ = 0;
+    // For debugging :
+    A__j__00___2 = m[-2]; A__j__01___1 = m[-1];
+    A__k__000 = m[0]; A__k__001 = m[1]; A__k__001 = m[1]; A__k__002 = m[2]; A__k__003 = m[3]; A__k__004 = m[4];
+    A__k__005 = m[5]; A__k__006 = m[6]; A__k__007 = m[7]; A__k__008 = m[8]; A__k__009 = m[9]; A__k__010 = m[10];
+    A__k__011 = m[11]; A__k__012 = m[12]; A__k__013 = m[13]; A__k__014 = m[14]; A__k__015 = m[15]; A__k__016 = m[16];
+    A__k__017 = m[17]; A__k__018 = m[18]; A__k__019 = m[19]; A__k__020 = m[20]; A__k__021 = m[21]; A__k__022 = m[22];
+    A__k__023 = m[23]; A__k__024 = m[24]; A__k__025 = m[25]; A__k__026 = m[26]; A__k__027 = m[27]; A__k__028 = m[28];
+    A__k__029 = m[29]; A__k__030 = m[30]; A__k__031 = m[31]; A__k__032 = m[32]; A__k__033 = m[33]; A__k__034 = m[34];
+    A__k__035 = m[35]; A__k__036 = m[36]; A__k__037 = m[37]; A__k__038 = m[38]; A__k__039 = m[39]; A__k__040 = m[40];
+    A__k__041 = m[41]; A__k__042 = m[42]; A__k__043 = m[43]; A__k__044 = m[44]; A__k__045 = m[45]; A__k__046 = m[46];
+    A__k__047 = m[47]; A__k__048 = m[48]; A__k__049 = m[49]; A__k__050 = m[50]; A__k__051 = m[51]; A__k__052 = m[52];
+    A__k__053 = m[53]; A__k__054 = m[54]; A__k__055 = m[55]; A__k__056 = m[56]; A__k__057 = m[57]; A__k__058 = m[58];
+    A__k__059 = m[59]; A__k__060 = m[60]; A__k__061 = m[61]; A__k__062 = m[62]; A__k__063 = m[63]; A__k__064 = m[64];
+    A__k__065 = m[65]; A__k__066 = m[66]; A__k__067 = m[67]; A__k__068 = m[68]; A__k__069 = m[69]; A__k__070 = m[70];
+    A__k__071 = m[71]; A__k__072 = m[72]; A__k__073 = m[73]; A__k__074 = m[74]; A__k__075 = m[75]; A__k__076 = m[76];
+    A__k__077 = m[77]; A__k__078 = m[78]; A__k__079 = m[79]; A__k__080 = m[80]; A__k__081 = m[81]; A__k__082 = m[82];
+    A__k__083 = m[83]; A__k__084 = m[84]; A__k__085 = m[85]; A__k__086 = m[86]; A__k__087 = m[87]; A__k__088 = m[88];
+    A__k__089 = m[89]; A__k__090 = m[90]; A__k__091 = m[91]; A__k__092 = m[92]; A__k__093 = m[93]; A__k__094 = m[94];
+    A__k__095 = m[95]; A__k__096 = m[96]; A__k__097 = m[97]; A__k__098 = m[98]; A__k__099 = m[99]; A__k__100 = m[100];
+    A__k__101 = m[101]; A__k__102 = m[102]; A__k__103 = m[103]; A__k__104 = m[104]; A__k__105 = m[105]; A__k__106 = m[106];
+    A__k__107 = m[107]; A__k__108 = m[108]; A__k__109 = m[109]; A__k__110 = m[110]; A__k__111 = m[111]; A__k__112 = m[112];
+    A__k__113 = m[113]; A__k__114 = m[114]; A__k__115 = m[115]; A__k__116 = m[116]; A__k__117 = m[117]; A__k__118 = m[118];
+    A__k__119 = m[119]; A__k__120 = m[120]; A__k__121 = m[121]; A__k__122 = m[122]; A__k__123 = m[123]; A__k__124 = m[124];
+    A__k__125 = m[125]; A__k__126 = m[126]; A__k__127 = m[127]; A__k__128 = m[128]; A__k__129 = m[129]; A__k__130 = m[130];
+    A__k__131 = m[131]; A__k__132 = m[132]; A__k__133 = m[133]; A__k__134 = m[134]; A__k__135 = m[135]; A__k__136 = m[136];
+    A__k__137 = m[137]; A__k__138 = m[138]; A__k__139 = m[139]; A__k__140 = m[140]; A__k__141 = m[141]; A__k__142 = m[142];
+    A__k__143 = m[143]; A__k__144 = m[144]; A__k__145 = m[145]; A__k__146 = m[146]; A__k__147 = m[147]; A__k__148 = m[148];
+    A__k__149 = m[149]; A__k__150 = m[150]; A__k__151 = m[151]; A__k__152 = m[152]; A__k__153 = m[153]; A__k__154 = m[154];
+    A__k__155 = m[155]; A__k__156 = m[156]; A__k__157 = m[157]; A__k__158 = m[158]; A__k__159 = m[159]; A__k__160 = m[160];
+    A__k__161 = m[161]; A__k__162 = m[162]; A__k__163 = m[163]; A__k__164 = m[164]; A__k__165 = m[165]; A__k__166 = m[166];
+    A__k__167 = m[167]; A__k__168 = m[168]; A__k__169 = m[169]; A__k__170 = m[170]; A__k__171 = m[171]; A__k__172 = m[172];
+    A__k__173 = m[173]; A__k__174 = m[174]; A__k__175 = m[175]; A__k__176 = m[176]; A__k__177 = m[177]; A__k__178 = m[178];
+    A__k__179 = m[179]; A__k__180 = m[180]; A__k__181 = m[181]; A__k__182 = m[182]; A__k__183 = m[183]; A__k__184 = m[184];
+    A__k__185 = m[185]; A__k__186 = m[186]; A__k__187 = m[187]; A__k__188 = m[188]; A__k__189 = m[189]; A__k__190 = m[190];
+    A__k______________ = 0;
+
+    s = -8;
+    A__l50 = mSL_MM_HighAd;
+    A__l51 = m[mSL_MM_HighAd]; 
+    a = m[mSL_MM_HighAd] + m; 
+    A__l52 = a; 
+    a = m + m[-1] -1;  // last memory word
+    A__l53 = a; A__l54 = a[0]; // ok
+    A__l58 = a+s; 
+    A__l60 = a[s+0]; A__l61 = a[s+1]; A__l62 = a[s+2]; A__l63 = a[s+3]; A__l64 = a[s+4]; A__l65 = a[s+5];
+    A__l66 = a[s+6]; A__l67 = a[s+7]; A__l68 = a[s+8]; A__l69 = a[s+9]; A__l70 = a[s+10]; A__l71 = a[s+11];
+    A__l72 = a[s+12]; A__l73 = a[s+13]; A__l74 = a[s+14];  A__l75 = a[s+15];
+    A__l____________ = 0;
+
+    A__m50 = mSL_current_memory;
+    A__m51 = a;
+    A__m72 = AAAA_memrArea;
+    A__m73 = AAAA_memrSize;
+    A__m74 = mSL_MT_FreeSt;
+    A__m75 = s;
+    A__m76 = mSL_MT_FreeNd;
+    A__m77 = mSL_End_Mark;
+    A__m78 = mSL_current_memory[-4];
+    A__m79 = mSL_current_memory[-3];
+    A__m80 = mSL_current_memory[-2];
+    A__m81 = mSL_current_memory[-1];
+
+
+    // dynamically check the memory
+    tmp = m + m[mSL_MM_LowAd]; p = tmp + 1;
+    A__m82 = (A__m86 = tmp[0]) == mSL_End_Mark;
+    tmp = m + m[mSL_MM_HighAd]; q = tmp;
+    A__m83 = (A__m87 = tmp[0]) == mSL_End_Mark;
+    A__m84 = p;
+    A__m85 = q;
+
+    A__m96 = mSL_MM_LStop;
+    A__m97 = m[mSL_MM_LStop];
+    A__m98 = mSL_MM_HighAd;
+    A__m99 = m[mSL_MM_HighAd];
+    A__mb0 = A__m99[0];
+    A__mb1 = (p[-1] == mSL_End_Mark);
+    A__ma0a = A__ma1a = A__ma2a = A__ma3a = A__ma4a = A__ma5a = 0;
+    A__ma0s = A__ma1s = A__ma2s = A__ma3s = A__ma4s = A__ma5s = 0;
+    A__ma0t = A__ma1t = A__ma2t = A__ma3t = A__ma4t = A__ma5t = 0;
+    A__b_FREE = 0;
+    A__b_MAXM = A__d04;
+    A__b_USED = 0;
+    while (p < q) (
+        h = p[0]; 
+        (h == mSL_Filler) ? (
+            p += 1;
+            A__b_FREE += 1;
+        ) : (
+            s = p[1]; st = p[s+2]; ht = p[s+3];
+            A__ma5a = A__ma4a; A__ma4a = A__ma3a; A__ma3a = A__ma2a; A__ma2a = A__ma1a; A__ma1a = A__ma0a; A__ma0a = p;
+            A__ma5t = A__ma4t; A__ma4t = A__ma3t; A__ma3t = A__ma2t; A__ma2t = A__ma1t; A__ma1t = A__ma0t; A__ma0t = h;
+            A__ma5s = A__ma4s; A__ma4s = A__ma3s; A__ma3s = A__ma2s; A__ma2s = A__ma1s; A__ma1s = A__ma0s; A__ma0s = s;
+            // check it is a block
+            A__m88 = p; A__m89 = h; A__m90 = s; A__m91 = st; A__m92 = ht;
+            A__m93 = 0;
+            A__m93 += 1 * ((h == mSL_MT_FreeSt) || (h >= mSL_MKey_min));
+            A__m93 += 2 * ((h == mSL_MT_FreeSt) || (h <= mSL_MKey_max));
+            A__m93 += 4 * ((s >= 0) && (s <= m[1]));
+            A__m93 += 8 * (s == st);
+            A__m93 += 16 * (ht == (h ~ mSL_CC_Chksum));
+            (A__m94 = A__m93 == 31) ? (
+                (h == mSL_MT_FreeSt) ? (A__b_FREE += s;) : (A__b_USED += s;);
+                p = p + s + 4; // next block
+            ) : (
+                q = 0;
+                A__m94a = p;
+                A__ma0u = p[-3];
+                A__ma0v = p[-2];
+                A__ma0w = p[-1];
+                A__ma0x = p[0];
+                A__ma0y = p[1];
+                A__ma0z = p[2];
+            ); 
+        );
+    );
+    A__mb3 = q;
+    A__mb2 = ((p == q) && (p[0] == mSL_End_Mark));
+    A__b__OK = (A__mb3 == A__m85) && A__mb2 && A__mb1 && A__d03 && A__m82 && A__m83;
+    A__b__ERRX = mSL_errX;
+    A__b__ERR_P = mSL_wbl;
+    A__b__MLow = mSL_current_memory + mSL_current_memory[mSL_MM_LowAd];
+    A__b__MHigh = mSL_current_memory + mSL_current_memory[mSL_MM_HighAd];
+    A__________________ = 0;
+);
+
+
