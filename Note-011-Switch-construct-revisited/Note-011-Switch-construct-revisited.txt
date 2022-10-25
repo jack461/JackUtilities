@@ -1,0 +1,191 @@
+[b]Introduction[/b]
+
+This is just a variation on the "switch-like-construct" proposed in my [url=https://forum.cockos.com/showthread.php?p=2598945#post2598945]note 5[/url]. In this one, following a suggestion by Tale, I replaced the bit tests previously used by comparisons operations, "<", and the results show that the suggestion was excellent.
+
+There again, a C program ("build_switch.c") is used, easy to compile (just type "make build_switch" in the terminal of any unix machine - it is probably as simple on a window machine, the "C" code is as standard as can be).
+
+This version have some more features than the previous one:
+[list=1]
+[*]It generates a faster code
+[*]It generates code for any range of integers, and not only powers of 2.
+[*]It can (somewhat) generate faster code for the most frequent actions (but read the small prints).
+[/list] 
+
+[b]description[/b]
+The "help" file which describes the options is somewhat concise:
+[code]$ build_switch -h
+build_switch: Build an integer selector for JSFX, like a C switch,
+    with continuous integer values from "first" to "last"
+Syntax:
+    build_switch [-f First] [-l Last] [-h] [-e Evar] [-v Vvar] [-i Inc] [-d] [-s Sep]
+        [-c Cselect] [-p Pivot] [-x Expr] [-t Tab] 
+where:
+    First is the first value of the range to test (default: 0).
+    Last is the last value of the range to test (default: 7).
+    [-h] prints this help.
+    [-d] Add "default" cases (actually, use First-1 and Last+1 to extends the switch).
+    Vvar is the tested variable, with values from First to Last (default: "Cmd")
+    Evar is an "error" variable, and is set to the tested variable as a default action. (default: "Err").
+    Inc is the global increment (in spaces) for the whole construct.
+    Tab is the additionnal increment (in spaces) for each case.
+    Sep is the separator string, default "//===%i===//".
+    Cselect lets you choose the comments you want around the action:
+        0: no comment;  1: upper comment only;  2: lower comment only;  3: both comments.
+    Pivot is a value in [First .. Last]. Default: (First+Last)/2.
+    Expr is any JSFX expression inserted as default on the action. Default: "Err=n;".
+$
+[/code]Note that the option library used ("getopt") accept spaces between the option name, like "-p" and the option value: "-p 23" is equivalent to "-p23".
+
+Here is an exemple of the code generated when no options are specified:
+[code]    (Cmd<4)?((Cmd<2)?((Cmd<1)?(
+        //===0===//
+        Err=0;
+        //===0===//
+    ):(
+        //===1===//
+        Err=1;
+        //===1===//
+    );):((Cmd<3)?(
+        //===2===//
+        Err=2;
+        //===2===//
+    ):(
+        //===3===//
+        Err=3;
+        //===3===//
+    ););):((Cmd<6)?((Cmd<5)?(
+        //===4===//
+        Err=4;
+        //===4===//
+    ):(
+        //===5===//
+        Err=5;
+        //===5===//
+    );):((Cmd<7)?(
+        //===6===//
+        Err=6;
+        //===6===//
+    ):(
+        //===7===//
+        Err=7;
+        //===7===//
+    );););
+[/code]
+As with the previous version, the code is "optimal": there is one test less (7) than the number of cases to recognize (8), and each case is reached in exactly 3 comparisons. However, using "<" instead of "&" gives an execution which is about 2.5 times faster, a real improvement. Using the construct is simple: generation the appropriate "switch" with the needed options (typically -f and -l), copy it in your plug-in, and replace the dummy "Err=x;" by your code.
+
+If you need to recognize cases in the [5 .. 15] range, you can specify the first number of the range (-f 5) and the last number (-l 15):
+[code]$ build_switch -f5 -l15
+    (Cmd<10)?((Cmd<7)?((Cmd<6)?(
+        //===5===//
+        Err=5;
+        //===5===//
+    ):(
+        //===6===//
+        Err=6;
+        //===6===//
+    );):((Cmd<8)?(
+        //===7===//
+        Err=7;
+        //===7===//
+    ):((Cmd<9)?(
+        //===8===//
+        Err=8;
+        //===8===//
+    ):(
+        //===9===//
+        Err=9;
+        //===9===//
+    );););):((Cmd<13)?((Cmd<11)?(
+        //===10===//
+        Err=10;
+        //===10===//
+    ):((Cmd<12)?(
+        //===11===//
+        Err=11;
+        //===11===//
+    ):(
+        //===12===//
+        Err=12;
+        //===12===//
+    ););):((Cmd<14)?(
+        //===13===//
+        Err=13;
+        //===13===//
+    ):((Cmd<15)?(
+        //===14===//
+        Err=14;
+        //===14===//
+    ):(
+        //===15===//
+        Err=15;
+        //===15===//
+    ););););
+[/code]
+Note however that this version is a "catch all": any value less than 5 will trigger the case "5", any value greater than 15 will trigger the case "15". If you want to catch these "outside" values, either use a larger range, such as [4 .. 16], with options "-f4 -l 16", OR, add the "default" option, "-d" to the initial range: "-f5 -l15 -d".
+
+When given a range, like "-f5 -l 15", the algorithm chooses a "pivot", "P", which is the number used for the first test: in this case, 10, which is (5+15)/2. The algorithm is then recursively applied to the subranges [5 .. P-1] and [P .. 15], which are about the same size, hence the "log N" number of steps. However, if you have some cases that are more frequent than others, AND if you can change the numbering scheme, you can specify a different initial pivot. Now, suppose than 5, 6, and 7 are much more frequent than the other cases, you can choose an initial pivot (here: 8) that isolate this specific subrange. If the subrange is very small, it probably needs one or two less comparisons than the rest of the set. You specify this option with "-p 8". Here is what you get:
+[code]$ build_switch -f5 -l15 -p8
+    (Cmd<8)?((Cmd<6)?(
+        //===5===//
+        Err=5;
+        //===5===//
+    ):((Cmd<7)?(
+        //===6===//
+        Err=6;
+        //===6===//
+    ):(
+        //===7===//
+        Err=7;
+        //===7===//
+    ););):((Cmd<12)?((Cmd<10)?((Cmd<9)?(
+        //===8===//
+        Err=8;
+        //===8===//
+    ):(
+        //===9===//
+        Err=9;
+        //===9===//
+    );):((Cmd<11)?(
+        //===10===//
+        Err=10;
+        //===10===//
+    ):(
+        //===11===//
+        Err=11;
+        //===11===//
+    ););):((Cmd<14)?((Cmd<13)?(
+        //===12===//
+        Err=12;
+        //===12===//
+    ):(
+        //===13===//
+        Err=13;
+        //===13===//
+    );):((Cmd<15)?(
+        //===14===//
+        Err=14;
+        //===14===//
+    ):(
+        //===15===//
+        Err=15;
+        //===15===//
+    ););););
+[/code]Now, you reach the cases 5, 6 and 7 in two comparisons, instead of 3.
+
+[b]more[/b]
+Non sequential cases ? What if you have a variable "V", which takes discrete integer values, like [0, 2, 3, 7, 12, 13, 16, 28, 29, 31] ? The simplest solution is to build a static array A, of size 32, filled with zeroes, and initialize it with the numbers of you choice for the corresponding actions: for example, decide that value 0 will correspond to action "1", value 2 to action "2", value 3 to action "3", value 7 to action "4", etc., with action "0" used as a default:
+[code]A[0]=1; A[2]=2; A[3]=3; A[7]=4; A[12]=5; ...[/code]
+Then you use "Cmd=A[V];" to get the action corresponding to a specific value "V" (or: "Cmd=((V<0)||(V>31))?0:A[V];" to handle default cases with action "0"), and use the pattern generated by "-f0 -l10", to obtain the most efficient possible selector...
+
+[b]Example[/b]
+The "JJ-Test_JSFX-Switch.jsfx" is a test plugin, with which you can compare both versions of the switch constructor.
+
+All the best !
+
+J. Jack.
+
+Get text and functions in my  [url=https://github.com/jack461/JackUtilities/tree/main/Note-011-Switch-construct-revisited]JackUtilities github Note-011[/url].
+
+[b]TL;DR summary:[/b] a revisitation, with some improvements, of the switch like construct. 
+
+[i]Back to the [url=https://forum.cockos.com/showthread.php?p=2597175#post2597175]Table of contents[/url].[/i]

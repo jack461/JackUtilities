@@ -1,0 +1,195 @@
+desc:JJ-Test_JSFX-Switch
+what:Comparing switches constructs
+
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+
+@init
+
+
+Loop1=10000;
+Loop2=100000;
+
+zzz_start=time_precise();
+
+Cmd = 0;
+loop(Loop1,
+    loop(loop2,
+        Cmd = (Cmd + 1) % 16;
+        
+        Err += Cmd !== Cmd;
+    );
+); 
+        
+zzz_end=time_precise();
+
+AA_loop_time = zzz_end - zzz_start;
+
+
+zzz_start=time_precise();
+
+Cmd = Err = 0;
+loop(Loop1,
+    loop(loop2,
+        Cmd = (Cmd + 1) % 16;
+        
+        
+        (Cmd&0x8)?((Cmd&0x4)?((Cmd&0x2)?((Cmd&0x1)?(
+            //===15===//
+            Err += Cmd !== 15;
+            //===15===//
+        ):(
+            //===14===//
+            Err += Cmd !== 14;
+            //===14===//
+        );):((Cmd&0x1)?(
+            //===13===//
+            Err += Cmd !== 13;
+            //===13===//
+        ):(
+            //===12===//
+            Err += Cmd !== 12;
+            //===12===//
+        ););):((Cmd&0x2)?((Cmd&0x1)?(
+            //===11===//
+            Err += Cmd !== 11;
+            //===11===//
+        ):(
+            //===10===//
+            Err += Cmd !== 10;
+            //===10===//
+        );):((Cmd&0x1)?(
+            //===9===//
+            Err += Cmd !== 9;
+            //===9===//
+        ):(
+            //===8===//
+            Err += Cmd !== 8;
+            //===8===//
+        );););):((Cmd&0x4)?((Cmd&0x2)?((Cmd&0x1)?(
+            //===7===//
+            Err += Cmd !== 7;
+            //===7===//
+        ):(
+            //===6===//
+            Err += Cmd !== 6;
+            //===6===//
+        );):((Cmd&0x1)?(
+            //===5===//
+            Err += Cmd !== 5;
+            //===5===//
+        ):(
+            //===4===//
+            Err += Cmd !== 4;
+            //===4===//
+        ););):((Cmd&0x2)?((Cmd&0x1)?(
+            //===3===//
+            Err += Cmd !== 3;
+            //===3===//
+        ):(
+            //===2===//
+            Err += Cmd !== 2;
+            //===2===//
+        );):((Cmd&0x1)?(
+            //===1===//
+            Err += Cmd !== 1;
+            //===1===//
+        ):(
+            //===0===//
+            Err += Cmd !== 0;
+            //===0===//
+        ););););
+        
+        
+    );
+);
+        
+zzz_end=time_precise();
+
+AA_switch_and = zzz_end - zzz_start - AA_loop_time;
+AA_switch_and_Err = Err;
+
+
+zzz_start=time_precise();
+
+Cmd = Err = 0;
+loop(Loop1,
+    loop(loop2,
+        Cmd = (Cmd + 1) % 16;
+        
+            (Cmd<8)?((Cmd<4)?((Cmd<2)?((Cmd<1)?(
+                //===0===//
+                Err += Cmd !== 0;
+                //===0===//
+            ):(
+                //===1===//
+                Err += Cmd !== 1;
+                //===1===//
+            );):((Cmd<3)?(
+                //===2===//
+                Err += Cmd !== 2;
+                //===2===//
+            ):(
+                //===3===//
+                Err += Cmd !== 3;
+                //===3===//
+            ););):((Cmd<6)?((Cmd<5)?(
+                //===4===//
+                Err += Cmd !== 4;
+                //===4===//
+            ):(
+                //===5===//
+                Err += Cmd !== 5;
+                //===5===//
+            );):((Cmd<7)?(
+                //===6===//
+                Err += Cmd !== 6;
+                //===6===//
+            ):(
+                //===7===//
+                Err += Cmd !== 7;
+                //===7===//
+            );););):((Cmd<12)?((Cmd<10)?((Cmd<9)?(
+                //===8===//
+                Err += Cmd !== 8;
+                //===8===//
+            ):(
+                //===9===//
+                Err += Cmd !== 9;
+                //===9===//
+            );):((Cmd<11)?(
+                //===10===//
+                Err += Cmd !== 10;
+                //===10===//
+            ):(
+                //===11===//
+                Err += Cmd !== 11;
+                //===11===//
+            ););):((Cmd<14)?((Cmd<13)?(
+                //===12===//
+                Err += Cmd !== 12;
+                //===12===//
+            ):(
+                //===13===//
+                Err += Cmd !== 13;
+                //===13===//
+            );):((Cmd<15)?(
+                //===14===//
+                Err += Cmd !== 14;
+                //===14===//
+            ):(
+                //===15===//
+                Err += Cmd !== 15;
+                //===15===//
+            ););););
+
+    );
+);
+        
+zzz_end=time_precise();
+
+AA_switch_less = zzz_end - zzz_start - AA_loop_time; 
+AA_switch_less_Err = Err;
+

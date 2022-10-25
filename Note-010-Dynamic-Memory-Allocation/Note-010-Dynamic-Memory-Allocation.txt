@@ -1,6 +1,6 @@
 [b]Introduction[/b]
 
-I introduce here a dynamic memory allocation, which can allocate and free arrays on demand. This allocator has many good properties: it works in O(1), both for allocation and desallocation of memory blocks. It merges continuous free blocks to build larger free blocks. It can be dynamically checked at run-time, and has been tested on various applications. 
+I introduce here a dynamic memory allocator, which can allocate and free arrays on demand. This allocator has many good properties: it works in O(1), both for allocation and desallocation of memory blocks. It merges continuous free blocks to build larger free blocks. It can be dynamically checked at run-time, and has been tested on various applications. 
 
 [b]The interface[/b]
 
@@ -26,11 +26,11 @@ In the REAPER Folder (the one you get by the menu "Options > Show REAPER resourc
 
 Import the file in your JSFX plug-in with "import JackUtilities/mSL_Dyn_Memory.jsfx-inc", and in the "@init" section, initialize the manager by "mSL_Dyn_Init(address, size)", with appropriate values. To use the total size of the memory, for example, you would write "mSL_Dyn_Init(0, __memtop());"
 
-The file "JJ-Test-JSFX-Dyn-1.jsfx" is a JSFX example of using the dynamic memory (and an additionnal file, "mSL_Mem_Dbg.jsfx-inc" which contains additionnal debug functions), with which you can test the performances of the allocatior on a few configurations.
+The file "JJ-Test-JSFX-Dyn-1.jsfx" is a JSFX example of using the dynamic memory (and an additional file, "mSL_Mem_Dbg.jsfx-inc" which contains some debug functions), with which you can test the performances of the allocator on a few configurations.
 
 [b]The internals[/b]
 
-Each allocated block has the following layout, which is the same as the one used in the static allocator (described in Note 2):
+Each allocated block has the following layout, which is the same as the one used in the static allocator (described in [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]Note 2[/url]):
 [code][ type | size | word0 | word1 | ... | last_word | size | ~type ][/code]
 The header is two words long, and contains the [i]type[/i] and the [i]size[/i] of the block. The "type" is a 4 characters constant, like [b]'data'[/b], [b]'code'[/b], etc. The "size" is the length of the inner part, without the header and the trailer. The trailer is also two words long, and contains the [i]size[/i] and the [i]~type[/i] of the block - this notation, "~type" represents the JS value "0x7FFFFFFF~type".
 
@@ -48,7 +48,7 @@ Here are some other aspects of the implementation:
 [*]There may be up to 40 or 50 such lists, each one dedicated to a specific range of sizes, these sizes being in an exponential progression (from blocks of size 8 to 11, 12 to 15, 16 to 23, 24 to 31, ..., 96 to 127, 128 to 191, ..., up to 25165824 to 33554431 and 33554432 to 50331647)
 [*]When a block of size "N" is needed, it is taken from the first non empty list of blocks of size non smaller than "N". The first (or last, if the "mSL_StM_FlAlign" option is specified - see point 12) block of the list is used, and, if its size is greater than what is needed, it is fragmented in a block of size exactly equal to what was requested, the rest being structured as a new free block, which is introduced in the appropriate free list. To represent a free block, we need at least 6 words of memory, and we decided that the smallest size of a free block would be 8. When the size to free is less than that, each word to free is filled with a special marker, "mSL_Filler", which means "free block of size one word". However, blocks of any size, from 0 to the maximum available size can be allocated.
 [*]When a block is freed (either, as described, implicitely as an unused part of a block after an allocation, or explicitely by a call to "mSL_Dyn_Free"), the allocator tries to merge it with the preceding and following blocks if these ones are free. 
-[*]Since we used double linked list to chain free blocks, insertions and suppressions, whatever the position of the block in the list is, are performed in O(1). So is the fusion of free blocks, since we never have to consider more than the preceding or the following block. 
+[*]Since we used double linked list to chain free blocks, insertions and suppressions, whatever the position of the block in the list is, are performed in O(1). So is the fusion of free blocks, since we never have to consider more than the preceding or the following block in memory order. 
 [*]Some blocks may have the property that they are fully contained in a 64k boundary area. Such free blocks are inserted in the [i]tail[/i] of their appropriate free list, other blocks are inserted in the [i]head[/i]. Any block of size greater than 64k, and requesting the "mSL_StM_FlAlign" property, will start exactly on a 64k boundary. Therefore you can request, for example, 192k, and use the allocated area as 3 consecutive buffers of 64k aligned on a 64k boundary.
 [*]Note also that both allocation and desallocation of blocks have to find the appropriate list of free blocks, but this task is limited to about 50 comparisons (and could be optimized by replacing it with a log search) executed in a tight loop. So this operation, being independent of the total number of managed blocks, is also considered to be in O(1).
 [/list]
@@ -62,6 +62,8 @@ All the best !
 
 J. Jack.
 
-Get text and code in my [url=url=https://github.com/jack461/JackUtilities/tree/main/Note-010-Dynamic-Memory-Allocation]JackUtilities github Note-010[/url].
+Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-010-Dynamic-Memory-Allocation]JackUtilities github Note-010[/url].
 
 [b]TL;DR summary:[/b] a description of a dynamic memory allocator.
+
+[i]Back to the [url=https://forum.cockos.com/showthread.php?p=2597175#post2597175]Table of contents[/url].[/i]

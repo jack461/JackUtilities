@@ -203,6 +203,8 @@ Finally, if you have more than one construct of this type in your program, use d
 
 J. Jack.
 
-Get text and functions in my [url=https://github.com/jack461/JackUtilities]JackUtilities github[/url].
+Get text and functions in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-005-A-switch-like-construct]JackUtilities github Note 5[/url].
 
 [b]TL;DR summary:[/b] a kind of switch like construct. 
+
+[i]Back to the [url=https://forum.cockos.com/showthread.php?p=2597175#post2597175]Table of contents[/url].[/i]
