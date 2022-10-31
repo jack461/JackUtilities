@@ -1,0 +1,240 @@
+[b]Introduction[/b]
+
+While implementing the "Game Master" plugin ([url=https://forum.cockos.com/showthread.php?p=2603499#post2603499]shortly described here[/url]), I found useful to be able to create configuration files that could be imported inside the sofware. After two or three iterations, I decided it would be more interesting to implement a full scripting language, which I called [i]mSL[/i], for "micro Script Language". As the very first "proof of concept" version only took me a couple of weeks, I continued in my wandering.
+
+Of course, if you want to make sure that it is really stupid to want to design a new programming language nowdays, just have a look at this video by [url=https://www.youtube.com/watch?v=lawj6GbkK2I]Jules Storer[/url]. But anyway, it took me an additional couple of months to get a first usable version (and, while doing other developments, I polished it during the next couple of years).
+
+So, this note documents some of the choices I made, and tries to justify them.
+
+[i]mSL[/i] is itself fully written in JSFX (jesusonic, aka eel2). The system consists of a compiler, generating a byte-code for a stack machine, an interpreter for this byte-code, and a set of run-time procedures. The compilation is dynamic, and at any moment, a script can be compiled and inserted in the active JSFX.
+
+The specs of mSL are very close to those of eel2. Since mSL can only be used in a JSFX plug-in, or in a software that supports JS, the potential user is assumed to be familiar with the JSFX syntax. The description here therefore concentrates on the specificities of mSL.
+
+[b]The mSL language[/b]
+
+The mSL language is very similar to JS. Like it, it only offers numbers as the single type of data, in the form of 64-bit floats, allows access to JS working memory, by indexing, and to shared memory, by means of the construct “gmem[x]”. Most JSFX operations and functions are available with equivalent names, syntax, and semantics. However, there are a few differences, due to programming impossibilities or choices made by the implementer, most of which are documented in the following paragraphs.
+
+[i]Imports[/i]
+mSL can import external files containing mSL instructions. The syntax of this operation consists of a specific keyword, [i]import[/i], followed by a character string containing the name of the file to be imported, which must have one of the extensions ".txt" or ".mSL", and ends with a semicolon. Ex: [i]import "file.txt";[/i] Import statements can be mixed with other statements.
+
+[i]Variables[/i]
+[list]
+[*]Variable names are sequences of characters, starting with a letter or the character "underscore", "_", and containing only letters, numbers and underscores. Uppercase and lowercase letters are distinct, which means, for example, that "abc", "Abc" and "ABC" denote three different variables. It is possible to use symbols longer than 8 characters. The compiler then replaces the symbol by a "compacted" symbol of 8 characters. As there is necessarily a loss of information, it is possible that two "long" symbols generate the same compressed symbol. Internally, variables are managed as symbols (see the discussion in this [url=https://forum.cockos.com/showthread.php?p=2603165#post2603165]note about Symbols[/url]).
+[*]All variables must be declared, with the keywords [b]var[/b] or [b]loc[/b], similar. Here is an example of such a statement:
+[code]var a=10, b, c=a+5, d=2*$pi;[/code]
+[*]However, declarations can be placed after other statements, and variables can even be used before their declaration, provided they are declared somewhere in the source text.
+[code]a = 3;
+b = 5<<a;
+c = b | 3; //returns 43 
+// declarations may follow
+var a, b, c;[/code][*]Variables [i]do not[/i] have associated namespaces, as do JSFX variables. In fact, there is not such a concept in mSL.
+[/list]
+[i]Constants[/i]
+All values ​​used in programs are 64-bit float values. There are different notations to represent these values, depending on the use that will be made of them.
+[list]
+[*]The "classic" numerical notation. These are integer and decimal notations, hexadecimal notation, which starts with 0x or 0X, followed by a sequence of hexadecimal digits (0 to 9 and A/a to F/f), or even binary notation, which starts with 0b or 0B, and contains only 0s and 1s.
+[*]Characters, and multibyte characters, which consist of a sequence of 1 to 4 characters enclosed in single quotes, such as 'A' or 'u2+,'. This notation has the same meaning as in JS.
+[*]Symbols are a compact notation for identifiers, such as variable names, beginning with a letter or an underscore, and containing only letters, digits, and the underscore character. This notation is introduced by the backquote character, as in `symbol. This notation generates integer values ​​between 0x02C0000000000 and 0x1000000000000.
+[*]Symbolic constants begin with the character $, followed by a symbol. The symbolic constants $pi and $e, representing well-known mathematical constants, are predefined, and an application can add new ones.
+[/list]
+[i]Primitive operations[/i]
+The semantics of operations are similar in both languages. Note, however, the following differences:
+[list]
+[*]In JS, the operations && and || provide a logical value, 0 or 1. mSL uses the semantics of the “C” language, and the expression 2 && 3 which provides 1 in JS, provides 3 in mSL. Both results correspond to a "true" value, so that in a test, the expression has the same meaning in both languages.
+[*]In mSL, the assignment operators (=, +=, etc.) have lower precedence than the ? :. It may therefore be necessary, in some cases, to add parentheses to obtain the desired semantics.
+[*]Generally, the priorities of operations are similar to those of "C". In the doubt, use parentheses! Here is the list of operations in decreasing order of priorities:
+[list=1]
+[*]( ) and [ ] - Parentheses, function calls, indexing
+[*]- + ! ~ Right to left Unary operations: opposite, identity, not-logical, not-binary
+[*]^ Left to right Raising to the power
+[*]* / % Left to right Multiplicative operations
+[*]+ - Left to right Additive operations
+[*]<< >> Left to Right Shifts
+[*]< <= >= < Left to right Non-associative comparisons
+[*]=== == != !== Left to Right Comparisons
+[*]& ~ Left to right "and", "exclusive or" bit by bit
+[*]| Left to right “or” bit by bit
+[*]&& Left to right logical "and"
+[*]|| Left to right logical "or"
+[*]? : Right to left Conditional form
+[*]= += -= *= etc. Right to left Assignment
+[*], Left to right Sequence of values
+[*]; Left to Right Instruction Sequence
+[/list][/list]
+
+[i]System Functions[/i]
+Some of the JS language primitive operations are available in mSL under the same name, and with the same semantics. In other cases, the name may be different, this being due to the limitation of names to 8 characters.[list]
+[*]The time_precise() operation is available as ptime()
+[*]The __memtop() operation is available under the name memtop()
+[*]System variables such as srate, num_ch, tempo are available as niladic functions, srate(), num_ch(), tempo(), etc.
+[/list]
+Note that mSL does not offer graphic functions.
+
+[i]Character strings[/i]
+Character strings in mSL are allocated from a set of predefined strings, either implicitly by the compiler, when a string constant is used in a program, or explicitly by the program, using the specific allocation function, "stralloc()". Strings are referenced like other values ​​in mSL, using ordinary variables. These strings can be explicitly freed by programs when they are no longer in use, using the "strfree()" function:
+[code]var s1 = "This is a string";
+var s2 = stralloc();
+strfree(s1);
+strfree(s2);
+[/code]
+The mSL language offers (due to the laziness of the implementer) only a part of the string operations available in JSFX: strlen(), strcpy(), strcat(), strcmp(), stricmp() and sprintf() are implemented. The JSFX str_getchar and str_setchar functions are available as strgetch() and strsetch(). Finally, a new function, compile(), compiles a string representing a sequence of mSL instructions, and provides the result of this compilation as a niladic function, which can be executed later:[code]var c = compile("var a=3, b=5; 2*a+b;");
+c(); // returns 11[/code]
+The function strtmp() allows you to temporarily allocate a character string, like "#" in JSFX. The value obtained does not need to be freed, and is deemed valid for the next few mSL instructions.
+
+[i]Loops[/i]
+The "loop" and "while" constructs are available, with the same semantics as in JS. However, only the "while" form of syntax "while (condition) (body);" is implemented.
+
+[i]Memory access[/i]
+mSL provides the indexing operator, represented by square brackets, "[]", which has the same semantics as in JSFX. A sequence such as a=100; a[7]; has the same effect in both languages, and returns the value of the memory word located at 107. This is also true for operations such as "gmem[x];" and "gmem[x]=y;".
+Also, mSL uses a part of the plug-in's memory, which it manages as a dynamic memory. The allocations in this memory are carried out by the "malloc()" operation, and the releases of this memory by "mfree()".
+Note that mSL provides no access to the JSFX host plugin variables. 
+
+[i]Arrays[/i]
+mSL defines a unique data structure, called [i]mBlock[/i] (for “Memory Block”), or more simply, "block", which is just a memory segment, with a specific header and termination (the structure of such blocks has been described in a [url=https://forum.cockos.com/showthread.php?p=2597177#post2597177]previous note[/url]). In many ways, such a block behaves like an array in a traditional programming language. Blocks are used to represent all the internal structures of the mSL system. They have a type associated with them, in the form of a 4-byte multi-char value, but this type is used as a simple labelling of the block. mSL programs can easily access information about a block: if "bl" is such a block, "bl[-2]" is its type, "bl[-1]" its number of elements, N, and the expressions "bl[0]" to "bl[N-1]" provide read or write access to its elements. In an mSL program, a dynamic creation can be performed by a call to "malloc()" or by the "array()" procedure. A block can also be created, at compile time, but still by dynamic memory allocation, using the data() directive, whose syntax includes the keyword "data" followed by a list of [i]constants[/i] in parentheses :[code]var bl = data(1,2,3.4, hello, world, 'ABCD', 0x3ffA27342C5, $pi, 'x'); // compile time
+bl[2]; //==> 3.4
+var bk = array(1, 2, 2+bl[2], sin(5.23), $pi/2); // exec time
+bk[2]; //==> 5.4[/code]
+In the "data" expression, all the values ​​are numbers, and, for example, "hello" has the value of the codification of the corresponding symbol, in the form of a 64-bit floating number. Note also that the commas which separate the values ​​between them are optional, and can be replaced by spaces or line breaks.
+The type of a block, as it is for example defined by a "data()" directive or the "array()" procedure, is by default "data" if it is not explicitly modified. The second (optional) parameter of malloc lets you define the type of the created block, as in "bl=malloc(100, 'toto');"
+Blocks can also be used as [i]symbol tables[/i], i.e. associative memories in which the elements of even rank represent the keys, and the elements of odd rank the associated values:[code]var tab = data(item1 1 item2 2 hello 3.4 world 333 'ABCD' 0x3ffA27342C5 last 'x');
+tab[`hello]  //==> 3.4
+tab['ABCD']  //==> 0x3ffA27342C5 -- which will in fact be written 4396477006533 when printed.[/code]
+Note that the “ data ” directive can also be replaced by a “ ` ” character: "`(1 2 3)" is strictly equivalent to "data(1 2 3)".
+Blocks can be freed using the [i]mfree()[/i] opration, but the application can also use the integrated garbage collector, which is quite fast, although of the "stop the world" type.
+
+[i]Symbol tables[/i]
+At runtime, different symbol tables come into play:
+[list]
+[*]the pointer table, which contains the variables defined by the [b]ptr[/b] keyword. These last variables are in fact "indirect" variables, which contain a memory address, and it is this memory address which is consulted or modified.
+[*]the table of global variables, which gathers the variables declared by the keyword [b]var[/b] and all the defined functions.
+[*]the table of "semi-local" variables, which contains the variables defined by the keyword [b]loc[/b]
+[*]the table of variables local to a function, which contains the values ​​of the parameters and variables declared by [b]local[/b] in this function (same syntax and semantics as in eel2).
+[/list]
+The first three are classic "blocks", of respective types 'ptrs', 'vars' and 'locs'. The latter is virtual, being temporarily represented by an area of ​​the execution stack.
+
+[i]Defined Functions[/i]
+[list]
+[*]Function definition syntax is the same in mSL and JS. However, commas separating arguments and local variables are mandatory in mSL, while they are optional in JS. Unlike JS, functions can be recursive, cross-recursion is allowed, and functions can be referenced before they are defined:[code]fib(25); // returns 75025
+function fib(n)
+(
+    (n < 2) ? n : fib(n-1) + fib(n-2);
+);[/code]
+[*]Parameters and local variables are allocated in the execution stack, at each function call. They are not attached to the function, and are therefore not remanent like in JS, which would not make sense for recursive functions. Similarly, local variables are not initialized during a function call, and receive the values ​​that happen to be on the stack at that time. 
+[*]The arity, that is to say the number of arguments of the defined functions, is fixed. A function with no argument is called [I]niladic[/i], a function with one argument is [i]monadic[/i], a function with two arguments is [i]dyadic[/i], etc. However, it is possible to define [i]variadic[/i] functions, that is, functions that accept an arbitrary number of elements. Such a function is defined with, in its header, two parameters separated not by a [i]comma[/i], but by a [i]semicolon[/i]. The semantics are similar to that of the main procedure header of a “C” program (with its traditional "argc" and "argv" parameters): the first parameter is the actual number of arguments, the second parameter is the reference to an array containing those arguments. With a definition such as function f(x; y), and the following call: f(12, 8, 5), x is equal to 3, because there are three parameters in this call, y[0] is 12, y[1] is 8, and y[2] is 5. Here is an example:[code]function f(a;b)
+local (s,i)
+(
+    s=i=0;
+    loop(a, s += b[i]; i+= 1; );
+    s;
+);
+f(2, 3, 5, 6) + f(5, 7) + f(); // returns 28
+[/code]
+Note that the array of arguments, b in the example above, is a temporary object, allocated on the stack, which is valid inside the function, but not usable outside of it.
+[*]Functions are first-class objects, which means they can be assigned to variables, passed as a parameter, rendered as a result of a function, and so on.[code]// functions as values
+function foo(a, b, c) (a+2*b^c;);
+var fun = foo;
+fun(3, 5, 2); //returns 53
+// functions as arguments
+function f1(x,y) (x+3*y;);
+function f2(x,y) (x*y+7;);
+function g(f, a, b) ( 1+f(a,b); );
+g(f1, 3, 5) + g(f2, 5, 6); //returns 57
+[/code]
+Note that primitive operators and functions are also first-class objects. A primitive function can be directly manipulated in the language. An operator, enclosed in parentheses, behaves like such a function:[code]var f1 = sin; f1(2.2); // returns 0.808496
+var f2 = (+); f2(62,39); // returns 101[/code]
+[*]The primitive function [b]return[/b] makes it possible to exit from a function, returning its result as the result of the function.[code]function f(u) (
+    u == 3? return(31);
+    2*u + 5;
+);
+f(2)+f(3); //returns 40
+[/code]
+[*]The interpreter detects and optimizes cases of tail recursion, that is, cases where a function call is immediately followed by an implicit or explicit return statement. The following example shows an outrageously complex addition of two integers:[code]function f1(x, y) (
+     x <= 0 ? return(y);
+     f2(x, y);
+);
+function f2(u, v)
+local(x, y, z, t) (
+     x = u; y = v;
+     z = x-1; t = 1;
+     f3(z,y,t);
+);
+function f3(a, b, c) (
+     f1(a,b+c);
+);
+f1 (5000000, 5000000);  //==> 10000000[/code]
+In the last line, calling function f1 provides the expected value, 10000000, and makes a total of 15 millions recursive calls to functions f1, f2, and f3, but consumes no space in the execution stack, each call resulting in a "simple" branch operation.
+[/list]
+
+[i]Defined Processes[/i]
+The implementation support multiple compiled mSL files running simultaneously, and each of these programs can create local threads.
+So, mSL allows you to define light weight processes, which can run in parallel, and without interfering with audio management. There may be hundreds of processes running simultaneously. All processes share the same global address space, which is that of the plugin, but may have separate private variable spaces. Independently compiled files share the same external table (ptr), but each one has its own global and semi-local variables tables. Inside a compiled file, all thread share the same global variable table (var), but each one has its independent semi-local variables (loc).
+At a given time, only one process is active. Switching between different processes is done automatically (the scheduler mechanism is preemptive, which ensures that no process will block the machine and no process will starve), or by an explicit request from the process, or from another process.
+The creation of new processes can be carried out by the JSFX hosting the mSL compiler, or explicitly, inside a mSL program, by a call to a specialized function. Currently, the following functions are available:[list][*]thread(fct), where fct is a defined function without parameter or local variable, creates a new thread
+[*]yield() allows a process to "yield" to the next process in the waiting list. If the current process is unique, it is reactivated immediately.
+[*]wait(sec) puts the current process on hold for a duration of "sec" seconds. It implicitely performs a yield, even if its parameter is negative or null.
+[*]exit(r) permanently stops the process. The value of the argument is provided as "exit value", and is retrievable by another process.
+[/list]
+Each process that has just been activated is guaranteed to have a given minimum execution time (more than 4000 instructions), which allows, after a yield() or a wait(), to be assured, during this period, exclusive access to memory and manipulated variables, even if they are shared with other threads.
+
+[i]Extensibility and Introspection[/i]
+There will be a lengthy note about these aspects, but let's signal that it is easy for a plug-in to add new "primitives" or new external variables to the mSL system, and that all the structures of the run-time can be accessed through the "ptr" table, which makes easy to perform any kind of introspection that can be required for the plug-in.
+
+[i]A script[/i]
+As an example of mSL script, this one creates 16 threads, that will all independently play sounds extracted from a small pool of clips.
+[code]/*
+   A very simple composition...
+*/
+wait(2); // let it load quietly
+var continue = 1;
+var clips = data(3300, 3330, 3304, 3353, 3315);
+function part1(x)
+local (rate, r, xct, c, str, sgt)
+(
+    rate = 1;
+    xct = 22;
+    str = stralloc();
+    sgt = stralloc();
+    sprintf(str, "Part %2d - Start", x);
+    GM_Log(str);
+    while (continue && (xct > 0)) (
+        yield();
+        c = clips[irand(clips[-1])];
+        r = play(`clip, c, `rate, rate, `vol, 0);
+        sprintf(str, "   cl=%04d th=%02d RC=%s rate=%g", c, x, edn(sgt, r), rate);
+        GM_Log(str);
+        wait(13 + rand(19));
+        rate = rate * 0.87;
+        xct -= 1;
+    );
+    sprintf(str, "Part %2d - End", x);
+    GM_Log(str);
+    strfree(str);
+    strfree(sgt);
+);
+var pn = 0;
+function part()
+(
+    part1(pn);
+);
+loop(16,  // create 16 new threads that will play random clips
+    pn += 1;
+    thread(`run, thread(`new, part));
+    wait (23 + rand(7));
+);
+wait(333);
+continue = 0; // this will stop all threads, sooner or later
+GM_Log("Main - End");
+[/code]Note that while functions like "wait", "yield", "thread" are "standard" in the language, "GM_log" and "play" are specific extensions provided by the plug-in that will load the script.
+
+[b]So...[/b]
+Being in the middle of the rewrite phase, the mSL software is not yet ready to be released. But this description gives you an idea of what services you can expect from it.
+
+All the best !
+
+J. Jack.
+
+Get text and code in my [url=url=https://github.com/jack461/JackUtilities/tree/main/Note-009-Dynamic-Memory-Allocation]JackUtilities github Note-002[/url].
+
+[b]TL;DR summary:[/b] a long "short description" of the mSL language.
+
+[i]Back to the [url=https://forum.cockos.com/showthread.php?p=2597175#post2597175]Table of contents[/url].[/i]

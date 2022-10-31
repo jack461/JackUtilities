@@ -11,7 +11,8 @@ This version have some more features than the previous one:
 [*]It can (somewhat) generate faster code for the most frequent actions (but read the small prints).
 [/list] 
 
-[b]description[/b]
+[b]Description[/b]
+
 The "help" file which describes the options is somewhat concise:
 [code]$ build_switch -h
 build_switch: Build an integer selector for JSFX, like a C switch,
@@ -71,7 +72,7 @@ Here is an exemple of the code generated when no options are specified:
         //===7===//
     );););
 [/code]
-As with the previous version, the code is "optimal": there is one test less (7) than the number of cases to recognize (8), and each case is reached in exactly 3 comparisons. However, using "<" instead of "&" gives an execution which is about 2.5 times faster, a real improvement. Using the construct is simple: generation the appropriate "switch" with the needed options (typically -f and -l), copy it in your plug-in, and replace the dummy "Err=x;" by your code.
+As with the previous version, the code is "optimal": there is one test less (7) than the number of cases to recognize (8), and each case is reached in exactly 3 comparisons. However, using "<" instead of "&" gives an execution which is about 2.5 times faster, a real improvement. Using the constructor is simple: generate the appropriate "switch" with the needed options (typically -f and -l), copy it in your plug-in, and replace the dummies "Err=x;" by your code.
 
 If you need to recognize cases in the [5 .. 15] range, you can specify the first number of the range (-f 5) and the last number (-l 15):
 [code]$ build_switch -f5 -l15
@@ -123,7 +124,7 @@ If you need to recognize cases in the [5 .. 15] range, you can specify the first
 [/code]
 Note however that this version is a "catch all": any value less than 5 will trigger the case "5", any value greater than 15 will trigger the case "15". If you want to catch these "outside" values, either use a larger range, such as [4 .. 16], with options "-f4 -l 16", OR, add the "default" option, "-d" to the initial range: "-f5 -l15 -d".
 
-When given a range, like "-f5 -l 15", the algorithm chooses a "pivot", "P", which is the number used for the first test: in this case, 10, which is (5+15)/2. The algorithm is then recursively applied to the subranges [5 .. P-1] and [P .. 15], which are about the same size, hence the "log N" number of steps. However, if you have some cases that are more frequent than others, AND if you can change the numbering scheme, you can specify a different initial pivot. Now, suppose than 5, 6, and 7 are much more frequent than the other cases, you can choose an initial pivot (here: 8) that isolate this specific subrange. If the subrange is very small, it probably needs one or two less comparisons than the rest of the set. You specify this option with "-p 8". Here is what you get:
+When given a range, like "-f5 -l 15", the algorithm chooses a "pivot", "P", which is the number used for the first test: in this case, 10, which is (5+15)/2. The algorithm is then recursively applied to the subranges [5 .. P-1] and [P .. 15], which are about the same size, but half the size of the initial range, hence the "log N" number of steps. However, if you have some cases that are more frequent than others (AND if you can change the numbering scheme to group these special cases), you can specify a different initial pivot. Now, suppose than 5, 6, and 7 are much more frequent than the other cases; you can choose an initial pivot (here: 8) that isolates this specific subrange. If the subrange is very small, it probably needs one or two less comparisons than the rest of the set. You specify this option with "-p 8". Here is what you get:
 [code]$ build_switch -f5 -l15 -p8
     (Cmd<8)?((Cmd<6)?(
         //===5===//
@@ -172,13 +173,16 @@ When given a range, like "-f5 -l 15", the algorithm chooses a "pivot", "P", whic
     ););););
 [/code]Now, you reach the cases 5, 6 and 7 in two comparisons, instead of 3.
 
-[b]more[/b]
-Non sequential cases ? What if you have a variable "V", which takes discrete integer values, like [0, 2, 3, 7, 12, 13, 16, 28, 29, 31] ? The simplest solution is to build a static array A, of size 32, filled with zeroes, and initialize it with the numbers of you choice for the corresponding actions: for example, decide that value 0 will correspond to action "1", value 2 to action "2", value 3 to action "3", value 7 to action "4", etc., with action "0" used as a default:
+[b]More[/b]
+
+Non sequential cases ? What if you have a variable "V", which takes discrete integer values, like [0, 2, 3, 7, 12, 13, 16, 28, 29, 31] ? The simplest solution is to build a static array A, of size 32, filled with zeroes, and initialize it with the numbers of your choice for the corresponding actions: for example, decide that value 0 will correspond to action "1", value 2 to action "2", value 3 to action "3", value 7 to action "4", etc., with action "0" used as a default:
 [code]A[0]=1; A[2]=2; A[3]=3; A[7]=4; A[12]=5; ...[/code]
-Then you use "Cmd=A[V];" to get the action corresponding to a specific value "V" (or: "Cmd=((V<0)||(V>31))?0:A[V];" to handle default cases with action "0"), and use the pattern generated by "-f0 -l10", to obtain the most efficient possible selector...
+Then you use "Cmd=A[V];" to get the action number corresponding to a specific value "V" (or: "Cmd=((V<0)||(V>31))?0:A[V];" to handle default cases with action "0"), and use the pattern generated by "-f0 -l10", to obtain the most efficient possible selector...
 
 [b]Example[/b]
+
 The "JJ-Test_JSFX-Switch.jsfx" is a test plugin, with which you can compare both versions of the switch constructor.
+
 
 All the best !
 

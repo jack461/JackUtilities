@@ -149,6 +149,8 @@ All the best !
 
 J. Jack.
 
-Get text and functions in my [url=https://github.com/jack461/JackUtilities]JackUtilities github[/url] (see "Note-004-xxx").
+Get text and functions in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-004-Strings-Management]JackUtilities github, strings management[/url].
 
 [b]TL;DR summary:[/b] about strings, and some aspects of their management.
+
+[i]Back to the [url=https://forum.cockos.com/showthread.php?p=2597175#post2597175]Table of contents[/url].[/i]
