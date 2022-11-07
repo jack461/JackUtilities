@@ -1,0 +1,156 @@
+desc:JJ-JSFX-TestBed-01
+
+slider1:0<-100,100,1>[0 .. 100]
+slider2:0<-10000,10000,100>[0 .. 10000]
+
+
+options:maxmem=33554432
+options:want_all_kb
+options:no_meter
+options:gfx_idle
+options:gfx_hz=10
+
+import JackUtilities/mSL_string-list-2000X.jsfx-inc
+import JackUtilities/mSL_string-list-2000Y.jsfx-inc
+import JackUtilities/mSL_string-list-2000Z.jsfx-inc
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+import JackUtilities/mSL_Strings.jsfx-inc
+import JackUtilities/mSL_Dyn_Memory.jsfx-inc
+import JackUtilities/mSL_Mem_Dbg.jsfx-inc
+import ui-lib.jsfx-inc
+import JackUtilities/mSL_ui_Log_Box.jsfx-inc
+
+@init
+ext_noinit = 1;
+
+//*/
+zzzpgstart = time_precise();
+//*/
+// Modify randomly random
+loop (time()%10000, rand(1000));
+//*/ 
+
+
+// Initialize the static memory
+mSL_StM_Init(10); // start at word 10
+
+
+// Creation of the string pools
+mSL_Str_Init(#zstrFirst, #zstrLast);   // str alloc/free
+mSL_Str_TInit(#ystrFirst, #ystrLast);  // str temp
+
+
+// Initialize the ui library
+add_ui = mSL_StM_BlockStart('ULib');
+freemem = ui_setup(add_ui); // initialize ui-lib
+mSL_StM_BlockEnd(freemem);
+
+
+// Creation of the Log Box
+logbox = mSL_log_box_new(#xstrFirst,#xstrLast);
+mSL_Log_Set(logbox, 'font', "Arial");  
+mSL_Log_Set(logbox, 'size', 11);
+mSL_Log_Set(logbox, 'flgs', 0xff);
+
+// MIDI buffer receiver
+MB_len = 65536;
+MBF = mSL_StM_Alloc(MB_len,'MIDI',0);
+
+// Create some temporary strings
+s1 = mSL_Str_Tmp();
+s2 = mSL_Str_Tmp();
+s3 = mSL_Str_Tmp();
+
+sprintf(s1,"START: %d", zzzpgstart);
+mSL_log(logbox,s1);
+
+
+// Slider handling
+sl1 = sl2 = 0;
+
+chk1 = mSL_StM_Check(); // check the memory
+
+zzzpgend = time_precise();
+
+
+sprintf(s2,"END: %d    Duration: %d s", zzzpgend, zzzpgend - zzzpgstart);
+mSL_log(logbox,s2);
+mSL_log(logbox," "); // blank line
+
+
+@slider
+
+(sl1 !== slider1) ? (
+    sl1 = slider1;
+    sprintf(#sld, "SLIDER 1: %d", sl1);
+    mSL_log(logbox, #sld);
+);
+
+(sl2 !== slider2) ? (
+    sl2 = slider2;
+    sprintf(#sld, "SLIDER 2: %d", sl2);
+    mSL_log(logbox, #sld);
+);
+
+
+@block
+
+
+while ((recvlen = midirecv_buf(offset,MBF,MB_len)) > 0) (
+    midisend_buf(offset,MBF,MB_len); // passthrough
+    // display the MIDI message
+    sprintf(#mstr, "MIDI [%d]:", offset);
+    ip = 0; loop (recvlen,
+        sprintf(#aux, " %02x", MBF[ip]);
+        strcat(#mstr, #aux);
+        ip += 1;
+    );
+    mSL_log(logbox, #mstr);
+);
+
+@gfx 
+
+
+// Code to test if we have a file name
+// that has been dragged and dropped in the plugin window
+// should be before ui_start();
+efi = 1; idx = 0;
+while (efi) (
+  (efi = gfx_getdropfile(idx, #fname)) ? (
+    #str = "FILE: ";
+    strcat(#str, #fname);
+    mSL_log(logbox,#str);
+    idx += 1;
+  ) : (
+    gfx_getdropfile(-1);
+  );
+);
+
+
+// see:  https://geraintluff.github.io/jsfx-ui-lib/doc/html/
+ui_start();    // reset the UI state.
+
+mcap = mouse_cap;
+// Display the Log Box
+mSL_log_Disp(logbox, 1);
+ 
+// Interactions ? 
+(k = ui_click(1)) ? (
+    sprintf(#s1, "MOUSE: 1 - mcap = %02x click time = %f", mcap, k);
+    mSL_log(logbox,#s1);
+);
+(k = ui_click(2)) ? (
+    sprintf(#s1, "MOUSE: 2 - mcap = %02x click time = %f", mcap, k);
+    mSL_log(logbox,#s1);
+);
+(k = ui_click(0x40)) ? (
+    sprintf(#s1, "MOUSE: 3 - mcap = %02x click time = %f", mcap, k);
+    mSL_log(logbox,#s1);
+);
+
+(chin = ui_key()) ? (
+    chix = chin & 0xFF; ((chix < 0x20) || (chix > 0xFe)) ? chix = '?';
+    sprintf(#s1, "CHAR: '%c' - %02X - mcap = %02x", chix, chin, mcap);
+    mSL_log(logbox, #s1);
+);
+

@@ -1,0 +1,616 @@
+/*
+    A dynamic memory allocation
+    Updated 15/09/2022 JJG.
+*/
+
+
+
+
+@init
+
+/*
+    The memory structure is (example for full sized memory) :
+
+
+                    ..........................
+chunk start         -->  -2     [ 'memr'  ]    (1835363698)
+                         -1     [ memsize ]    Size of the Memory chunk ex: (33553409)
+mSL_current_memory  -->   0     [ 'size'  ]    mSL_MM_MemSizId   (1936292453)
+                          1     [ usable  ]    mSL_MM_MemSiz     Size of the max block available: ex: (33553252)
+                          2     [ 'frhd'  ]    mSL_MM_FrHdId     (1718773860)
+                          3     [ 1st list]    mSL_MM_FrHd   points to the first free list (12/relative)
+                          4     [ 'frtl'  ]    mSL_MM_FrTlId (1718776940)
+                          5     [last list]    mSL_MM_FrTl points to the last free list (184/relative) -- for a 32 Mb available memory
+                          6     [ 'fmwd'  ]    mSL_MM_LowAdId (1718450020)
+                          7     [ min.add ]    mSL_MM_LowAd  lower limit for memory blocks = (152/relative) @ of the start/end marker
+                          8     [ 'lmwd'  ]    mSL_MM_HighAdId  (1819113316)
+                          9     [ max.add ]    mSL_MM_HighAd  higher limit for memory block (relative) @ of the start/end marker
+                         10     [ 'bfwa'  ]    mSL_MM_WABuffId  32 words buffer used by allocator
+                         11     [ bf.add  ]    mSL_MM_WABuff  pointer (relative) to buffer
+                         12     [    0    ]    size 0 blocks : used in algorithms
+                         13     [  hd-1   ]    head of the size 8/11 free blocks list (or -12)
+                         14     [  tl-1   ]    tail of the size 8/11 free blocks list (or -12)
+                         15     [    8    ]    min size for the previous list
+                         16     [  hd-2   ]    head of the size 12/15 free blocks list (or -15)
+                         17     [  tl-2   ]    tail of the size 12/15 free blocks list (or -15)
+                         18     [   12    ]    min size for the previous list
+                         19     [  hd-3   ]    head of the size 16/23 free blocks list (or -18)
+                         20     [  tl-3   ]    tail of the size 16/23 free blocks list (or -18)
+                         21     [   16    ]    min size for the previous list
+                         22     [  hd-4   ]    head of the size 24/31 free blocks list (or -21)
+                         23     [  tl-4   ]    tail of the size 24/31 free blocks list (or -21)
+                         24     [   24    ]    min size for the previous list
+                         25     [  hd-5   ]    head of the size 32/47 free blocks list (or -24)
+                         26     [  tl-5   ]    tail of the size 32/47 free blocks list (or -24)
+                         27     [   32    ]    etc...
+                    ..........................
+                         144    [ 25165824]    min size for the previous list
+                         145    [  hd-44  ]    head of the before last free blocks list (or -144)
+                         146    [  tl-44  ]    tail of the before last free blocks list (or -144)
+                         147    [ 33554432]    min size for the previous list
+                         148    [  hd-45  ]    head of the before last free blocks list (or -147)
+                         149    [  tl-45  ]    tail of the before last free blocks list (or -147)
+                         150    [ 50331648]    min size for the previous list
+                         151    [  hd-46  ]    head of the last free blocks list (or -150)
+                         152    [  tl-46  ]    tail of the last free blocks list (or -150)
+                         153    [   -1    ]    alloc work area (32 words)
+                         154    [   -1    ]  
+                    ..........................
+                         183    [   -1    ] 
+                         184    [   -1    ]    end of work area
+                         185    [start/end]    (538970369) start/end marker for blocks
+                         186    [ 'free'  ]    (539089154) -- special codification, not really 'free'
+                         187    [  size   ]    this free block size
+                         188    [  hd-x   ]    forward pointer to next block, actually -144
+                         189    [  tl-x   ]    backward pointer to next block, actually -144
+                         190    [    0    ]    unused
+                    ..........................
+                    33554421    [    0    ]    unused
+                    33554422    [    0    ]    unused
+                    33554423    [   size  ]    this free block size - same as add. 153
+                    33554424    [ ~'free' ]    (1608394493) -- special codification, not really ~'free'
+                    33554425    [start/end]    (538970369) start/end marker for blocks
+                    33554426    [ memsize ]    memory size - ex: (33553409) same as add -1
+chunk end      -->  33554426    [ ~'memr' ]    (312119949) the ~'memr' value
+                    33554427    [ MemHigh ]    (possibly) static allocator high memory marker
+                    33554428    [    0    ]    unused
+
+
+*/
+
+
+
+
+function mSL_Dyn_Init(mem, size)
+local(idx, s, t, z, memory,ffbsize, ppt, M2, M3, ptr)
+(
+    // Various structures
+    mSL_Obj_Type = 0; // type for all objects
+    mSL_Obj_Size = 1; // size for all objects
+    mSL_Free_Next = 2; // free blocks chaining
+    mSL_Free_Prev = 3; // free blocks chaining
+    mSL_CC_Chksum = 0x7FFFFFFF;
+    mSL_errX = 0;
+    mSL_End_Mark = 0x20200901; // a "start/end" marker for work areas... 538970369
+    mSL_MKey_min = 0x21212121; // The minim. key for a memory object : 
+    mSL_MKey_max = 0x7E7E7E7E; // the max. key for a memory object...
+    mSL_smallest_free = 8; // smallest free block to test, should be 6 or more; 
+    mSL_lastmemory = __memtop() - 8;
+    mSL_MT_FreeSt = 0x2021D902;   // free blockmarker : 539089154
+    mSL_MT_FreeNd = (mSL_CC_Chksum ~ mSL_MT_FreeSt); // 1608394493
+    mSL_MT_Data = 'data';  // 1684108385
+    mSL_KODE_memory = 'memr';  // 1835363698  ~'memr' = 312119949
+    mSL_Filler =   0x0100849 * 0x100000; // Memory Filler
+    // Is the parameter already a valid (static) chunk ?
+    /*
+    AAA_T1 = (size == 0) ;
+    AAA_T2 = ((ptr = mem - 2) > 0);
+    AAA_T3 = ((t = ptr[mSL_Obj_Type]) >= mSL_MKey_min);
+    AAA_T4 = (t <= mSL_MKey_max);
+    AAA_T5 = ((s = ptr[mSL_Obj_Size]) > 0);
+    AAA_T6 = (s == ptr[s+2]);
+    AAA_T7 = (ptr[s+3] == (t ~ mSL_CC_Chksum));
+    */
+    ((size == 0) && ((ptr = mem - 2) > 0) && ((t = ptr[mSL_Obj_Type]) >= mSL_MKey_min) && (t <= mSL_MKey_max)
+        && ((s = ptr[mSL_Obj_Size]) > 0) && (s == ptr[s+2]) && (ptr[s+3] == (t ~ mSL_CC_Chksum))) ?
+    (
+        // reuse the block
+        size = s + 4;
+        mem = ptr;
+        /*
+        AAAsize = size;
+        AAAmem = mem;
+        AAAtype = t;
+        */
+    );
+    // Main Memory Block Structure
+    idx = -1;
+    mSL_MM_MemSizId = (idx += 1); // 'size'
+    mSL_MM_MemSiz = (idx += 1); // size of the largest possible block
+    mSL_MM_FrHdId = (idx += 1); // 'frhd'
+    mSL_MM_FrHd = (idx += 1); // first free list (smallest blocks)
+    mSL_MM_FrTlId = (idx += 1); // 'frtl'
+    mSL_MM_FrTl = (idx += 1); // last free list (bigest blocks)
+    mSL_MM_LowAdId = (idx += 1); // 'fmwd'
+    mSL_MM_LowAd = (idx += 1); // first (lowest) memory block address
+    mSL_MM_HighAdId = (idx += 1); // 'lmwd'
+    mSL_MM_HighAd = (idx += 1); // last (highest) memory block address
+    mSL_MM_WABuffId = (idx += 1); // 'bfwa'
+    mSL_MM_WABuff = (idx += 1); // temp buffer address
+    mSL_MM_WABSize = 32; // size of buffer
+    mSL_MM_WAMax = 0;
+    mSL_MM_1stP = (idx += 1); // position of first pointer
+    mSL_MM_LStop = 0; // lower stop marker
+    mSL_MM_1BKey = 0; // Key of initial free block
+    mSL_MM_1BSiz = 0; // Size of initial free blockinit_log_boxes
+    mSL_MM_1BPrev = 0; // Initial 'prev' pointer
+    mSL_MM_1BNext = 0; // Initial 'next' pointer
+
+    mSL_StM_FlClear = 1; // clear block contents once allocated
+    mSL_StM_FlAlign = 2; // allocate inside a 64k boundary
+    mSL_StM_FlCheck = 4; // check memory before allocation
+    mSL_StM_FlSigErr= 8; // signal error in case of error found
+    mSL_StM_FlFill = 16; // fill new block with random garbage
+    mSL_StM_FlBCheck = 32; // check block after allocation
+    mSL_StM_FlSigStop = 64; // stop in case of error found
+    mSL_Dyn_GlobFlgs = 0;  // global flags
+
+    mSL_StM_Zone = 0x7FFFFF0000; // get the zone ID of a mem address
+    mSL_StM_Loc = 0xFFFF; // location inside a zone
+    mSL_StM_Low =  0x7FDA04C1; // Low memory marker (2144994497)
+    mSL_StM_High = 0x7FAD03C2; // high memory marker (2142045122)
+    mSL_Dyn_Flgs = 0; // some test flags
+
+    size = 0|size;
+    ((mSL_new_memory != 0) || (size < 32768)) ? (
+        mSL_errX = 1025; mSL_errPos = 0;
+    ) : (
+        memory = mem + 2;
+        mem[0] = mSL_KODE_memory; // as "MEMoRy"
+        mem[1] = mem[size-2] = s = size - 4;
+        mem[size-1] = mSL_KODE_memory ~ mSL_CC_Chksum;
+        // mSL_internal_clear_memory(memory, s);
+        memset(memory, 0, s); // set it empty
+        // Define some properties
+        memory[mSL_MM_MemSizId] = 'size'; // max block size -- 1936292453
+        memory[mSL_MM_FrHdId] = 'frhd'; // head of list of lists  -- 1718773860
+        memory[mSL_MM_FrTlId] = 'frtl'; // tail of list of lists  -- 1718776940
+        memory[mSL_MM_LowAdId] = 'fmwd'; // first (lowest) memory block address -- 1718450020
+        memory[mSL_MM_HighAdId] = 'lmwd'; // last (highest) memory block address -- 1819113316
+        memory[mSL_MM_WABuffId] = 'bfwa'; // buffer address -- 1650882401
+        memory[mSL_MM_HighAd] = s - 1; // memory + s - 1;
+        // Enter pointers in memory
+        M2 = 4; M3 = 6; // will actually start at 8 and 12
+        memory[mSL_MM_FrHd] = ppt = mSL_MM_1stP; // index of first entry
+        // create a "gather-it" "0" list 
+        memory[z = ppt] = 0; memory[(ppt+=1)] = -z; memory[(ppt+=1)] = -z;
+        // The values of M2, M3, and multiple, are "usable" sizes for blocks
+        // which means that mem.blocks are of size "n+4"
+        while (M2 < s) (
+            M2 += M2; M3 += M3;
+            memory[z = (ppt+=1)] = M2; memory[(ppt+=1)] = -z; memory[(ppt+=1)] = -z; // value, head and tail
+            memory[z = (ppt+=1)] = M3; memory[(ppt+=1)] = -z; memory[(ppt+=1)] = -z; // value, head and tail
+        );
+        // Size for the buffer
+        memory[mSL_MM_FrTl] = ppt;
+        memory[mSL_MM_WABuff] =  (ppt+=1); ppt += mSL_MM_WABSize - 1;
+        memset(memory+memory[mSL_MM_WABuff], -1, mSL_MM_WABSize);
+        // Add the block marker
+        mSL_MM_LStop = (ppt+=1);
+        memory[mSL_MM_LowAd] = mSL_MM_LStop; // the Low End_Mark
+        memory[mSL_MM_LStop] = mSL_End_Mark; // lower stop marker
+        // Creation of the initial huge free block
+        mSL_MM_1BKey = (ppt+=1); // has a fixed position in memory
+        ffbsize = s - mSL_MM_1BKey - 5; // size of the initial "free" block
+        memory[mSL_MM_1BKey] = mSL_MT_FreeSt; // its type
+        mSL_MM_1BSiz = (ppt+=1);
+        memory[mSL_MM_1BSiz] = ffbsize; // its length
+        mSL_MM_1BPrev = (ppt+=1); // indices of forward and backward pointers
+        mSL_MM_1BNext = (ppt+=1); // for the block
+        memory[s-3] = ffbsize; // copy of its length
+        memory[s-2] = mSL_MT_FreeNd; // free end marker
+        memory[s-1] = mSL_End_Mark; // upper stop marker
+        memory[mSL_MM_MemSiz] = ffbsize; // main bloc length
+        // The free block created should be inserted in the appropriate list
+        ptr = memory + memory[mSL_MM_FrHd];
+        while (ptr[0] <= ffbsize) (ptr += 3;);
+        // insert in previous entry
+        memory[mSL_MM_1BPrev] = memory[mSL_MM_1BNext] = ptr[-1]; // pointers to prev and next
+        ptr[-1] = ptr[-2] = memory + mSL_MM_1BKey;
+        mSL_wbl = mSL_wfr = 0;
+        // Return the actual memory
+        mSL_new_memory = memory;
+    );
+    (mSL_current_memory == 0) ?
+        (mSL_current_memory = mSL_new_memory;) ;
+    mSL_new_memory;
+);
+
+
+
+
+/*
+    Free a block -- version using multiple chained lists
+*/
+function mSL_Dyn_Free(obj)
+local(flg, addr, size, key, nbl, nsize, next, prev, w, s, bs, pr, nx, hd, tl, ptr)
+(
+    flg = (((mSL_errX == 0) || (!(mSL_Dyn_GlobFlgs & mSL_StM_FlSigStop)))
+        && ((addr = obj - 2) > (mSL_current_memory + mSL_current_memory[mSL_MM_LowAd])) 
+        && (addr === (0|addr))
+        && ((size = addr[mSL_Obj_Size]) >= 0) 
+        && (addr+size+4 <= (mSL_current_memory + mSL_current_memory[mSL_MM_HighAd])) 
+        && (addr[size+2] == size)
+        && ((key = addr[mSL_Obj_Type]) >= mSL_MKey_min) && (key <= mSL_MKey_max)
+        && (key != mSL_MT_FreeSt)
+        && (addr[size+3] == (key ~ mSL_CC_Chksum)));
+    flg ? (
+        // compute characteristics [nbl = "new" block, nsize = "new" size...]
+        nbl = addr; nsize = size; next = addr + size + 4;
+        // Can we merge with next ?
+        while (next[mSL_Obj_Type] == mSL_Filler) (next += 1; nsize += 1;);
+        // Is there a following free block ?
+        (next[mSL_Obj_Type] == mSL_MT_FreeSt) ? (
+            // Check next
+            (((bs = next[mSL_Obj_Size]) >= 0) && (bs < mSL_current_memory[mSL_MM_MemSiz]) 
+            && (bs == next[bs+2]) && (next[bs+3] == mSL_MT_FreeNd)) ? (
+                nsize += bs + 4; // new size
+                // Unchain the block from its free list
+                pr = next[mSL_Free_Prev]; nx = next[mSL_Free_Next]; 
+                (pr > 0) ? (
+                    // preceding is a free memory block
+                    pr[mSL_Free_Next] = nx;
+                ) : (
+                    // pr is < 0, and the entry of the "head" link
+                    mSL_current_memory[(-pr)+1] = nx;
+                );
+                (nx > 0) ? (
+                    // next is a free memory block
+                    nx[mSL_Free_Prev] = pr;
+                ) : (
+                    // nx is < 0, and the entry of the "tail" link
+                    mSL_current_memory[(-nx)+2] = pr;
+                );
+            ) : (
+                (mSL_wfr == 0) ? (
+                    mSL_errX = 1034; // system error - invalid next free block
+                    mSL_wbl = next;
+                );
+                flg = 0;
+            ); 
+        );
+    ) : (
+        (mSL_wfr == 0) ? (
+            mSL_wfr = addr;
+        ) ;  // keep first wrong block freed
+    );
+    flg ? (
+        // Is there a preceding free block ?
+        prev = addr - 1;
+        while (prev[0] == mSL_Filler) (nbl = prev; prev -= 1; nsize += 1;);
+        (prev[0] == mSL_MT_FreeNd) ? (
+            (((bs = prev[-1]) >= 0) && (bs < mSL_current_memory[mSL_MM_MemSiz])
+            && (bs == prev[-bs-2]) && (prev[-bs-3] == mSL_MT_FreeSt)) ? (
+                w = bs + 4; 
+                nbl -= w; nsize += w;
+                // unchain it from its list
+                pr = nbl[mSL_Free_Prev]; nx = nbl[mSL_Free_Next]; 
+                (pr > 0) ? (
+                    // preceding is a free memory block
+                    pr[mSL_Free_Next] = nx;
+                ) : (
+                    // pr is < 0, and the entry of the "head" link
+                    mSL_current_memory[(-pr)+1] = nx;
+                );
+                (nx > 0) ? (
+                    // next is a free memory block
+                    nx[mSL_Free_Prev] = pr;
+                ) : (
+                    // nx is < 0, and the entry of the "tail" link
+                    mSL_current_memory[(-nx)+2] = pr;
+                );
+            ) : (
+                mSL_errX = 1035; // system error - invalid preceeding "free" block
+                mSL_wbl = addr ; //prev - bs - 3;
+                flg = 0;
+            );
+        );
+    );
+    flg ? (
+        // Really create a new free block ?
+        (nsize >= mSL_smallest_free) ? (
+            // Recreate the brand new free block
+            nbl[mSL_Obj_Type] = mSL_MT_FreeSt; 
+            nbl[nsize+3] = mSL_MT_FreeNd;
+            nbl[mSL_Obj_Size] = nbl[nsize+2] = nsize;
+            // Insert this block in the free list
+            // Look for the appropriate location
+            ptr = mSL_current_memory + mSL_current_memory[mSL_MM_FrHd];
+            while (ptr[0] <= nsize) (ptr += 3;);
+            ((nsize < ptr[-3]) || (nsize >= ptr[0])) ? (
+                mSL_errX = 1036; // system error - wrong a-list item
+                // AAAA_Free_2 = nsize;
+                // AAAA_Free_1 = ptr[-3];
+                // AAAA_Free_3 = ptr[0];
+            ) : (
+                // Is this list empty ?
+                (ptr[-2] < 0) ? (
+                    // Enter the block in this list
+                    nbl[mSL_Free_Next] = nbl[mSL_Free_Prev] = ptr[-2];
+                    // Set this block as head and tail
+                    ptr[-1] = ptr[-2] = nbl;
+                ) : (
+                    // There is already a block in the list
+                    // should we link as first or last block ?
+                    ((((nbl+2)&mSL_StM_Zone))==((nbl+nsize+1)&mSL_StM_Zone)) ? (
+                        // chain in tail
+                        tl = ptr[-1];
+                        nbl[mSL_Free_Prev] = tl;
+                        nbl[mSL_Free_Next] = tl[mSL_Free_Next];
+                        tl[mSL_Free_Next] = nbl;
+                        ptr[-1] = nbl;
+                    ) : (
+                        // chain in head
+                        hd = ptr[-2];
+                        nbl[mSL_Free_Next] = hd; // hd becomes the 2nd block in the list
+                        nbl[mSL_Free_Prev] = hd[mSL_Free_Prev]; // we adopt its "previous" pointer
+                        hd[mSL_Free_Prev] = nbl;
+                        ptr[-2] = nbl;
+                    );
+                );
+            );
+        ) : (
+            // The area is 'too small' ; just fill it with fillers
+            memset(nbl, mSL_Filler, nsize+4);
+        );
+        mSL_mfreed += 1;
+    );
+    ((mSL_Dyn_GlobFlgs & mSL_StM_FlSigErr) && (mSL_errX != 0)) ? (
+        s = #; sprintf(s, "MemError %d at %d", mSL_errX, mSL_wbl);
+        strcpy(#dbg_desc, s);
+    );
+    flg;
+);
+
+
+/*
+    Allocator - version using multiple chained lists
+*/
+function mSL_Dyn_Alloc(size, type, flags)
+local (fw, lw, res, k, l, s, pt, pr, nx, bs, hd, tl, pr, nx, nbl, ls, ptr, ptw, pli, nsize, fail, headfree, headsize, tailfree, tailsize, waBuff, waIn, waOut)
+(
+    res = pt = ptw = headfree = headsize = tailfree = tailsize = 0; 
+    size = max(0, (0|size));
+    flags |= mSL_Dyn_GlobFlgs; // merge with global flags
+    ((type < mSL_MKey_min) || (type > mSL_MKey_max)) ? (type = 'undf';);
+    k = mSL_current_memory[mSL_MM_FrHd];
+    l = mSL_current_memory[mSL_MM_FrTl];
+    ((mSL_errX != 0) && (flags & mSL_StM_FlSigStop)) ? (
+        res = 0;
+    ) :
+    (k != mSL_MM_1stP) ? (
+        mSL_errX = 1037; // system error - list head error
+        mSL_wbl = pt;
+    ) : 
+    (l+mSL_MM_WABSize != mSL_MM_LStop-1) ? (
+        mSL_errX = 1038; // system error - list tail error
+        mSL_wbl = pt;
+    ) :  (
+        // Look for the first list with a block of appropriate size
+        //AAA_C__1=        size;
+        //AAA_B__1=
+        ptr = mSL_current_memory + mSL_current_memory[mSL_MM_FrHd];
+        //AAA_B__2=
+        pli = mSL_current_memory + mSL_current_memory[mSL_MM_FrTl];
+        //AAA_C__2=    ptr[0];
+        //AAA_C__3=    ptr[1];
+        while (((ptr[0] < size) || (ptr[1] <= 0)) && (ptr < pli)) (ptr += 3;);
+        // Have we found an entry ?
+        ((flags & mSL_StM_FlAlign)) ? (
+            // need a block not crossing a 64k limit
+            (ptr < pli) ? (
+                // use a short work area for the search
+                waBuff = mSL_current_memory + mSL_current_memory[mSL_MM_WABuff];
+                memset(waBuff, -1, mSL_MM_WABSize); waIn = 0; waOut = 0;
+                waBuff[waIn] = ptr[2]; waIn+=1; // introduce the block found, starting at the tail
+                fail = 0;
+                while ((mSL_errX == 0) && (ptw == 0) && (ptr < pli)) (
+                    mSL_DA_loop += 1; mSL_MM_WAMax = max(mSL_MM_WAMax, waIn);
+                    ((waOut == waIn) || (fail > 4)) ? (
+                        // try next list, of blocks with greater size
+                        while (((ptr += 3) < pli) && (ptr[2] < 0)) ; 
+                        (ptr < pli) ? ( 
+                            waBuff[waIn] = ptr[2]; 
+                        );
+                        waIn = (waIn+1) % mSL_MM_WABSize;
+                        fail = 0;
+                    );
+                    // get the next block in the list
+                    pt = waBuff[waOut]; 
+                    (pt > 0) ? (
+                        waBuff[waOut]= -pt; 
+                        bs = pt[mSL_Obj_Size]; // this block size
+                        ((pt <=  (mSL_current_memory + mSL_current_memory[mSL_MM_LowAd]))
+                        || ((pt+bs+3) >= (mSL_current_memory + mSL_current_memory[mSL_MM_HighAd]))) ? 
+                        (
+                            mSL_errX = 1039; // system error - block seems outsides of the memory
+                            mSL_wbl = pt;
+                        ) : (
+                            // Introduce its predecessor in the list
+                            ((pr = pt[mSL_Free_Prev]) > 0) ? (
+                                waBuff[waIn] = pr; waIn = (waIn+1) % mSL_MM_WABSize;
+                            );
+                            fw = pt+2; lw = pt + bs +1; // &st & last words
+                            // is the block adequate ? Try the start of block
+                            ((fw & mSL_StM_Zone) == ((pt+size+1)&mSL_StM_Zone)) ? (
+                                // 1st and last needed words in the same zone - type 1 : use the start of the block
+                                ptw = pt; tailfree = pt + size + 4; tailsize = bs - size;
+                                mSL_DA_hd += 1;
+                                /*
+                                AAA_M_pt = pt; AAA_M_ptw = ptw; AAA_M_headfree = headfree; AAA_M_headsize = headsize;
+                                AAA_M_tailfree = tailfree; AAA_M_tailsize = tailsize;
+                                AAA_M_bs = bs; AAA_M_size = size; AAA_M_atype = 1;
+                                */
+                            ) : 
+                            // try the end of block
+                            ((lw - (lw & mSL_StM_Zone) + 1) >= size) ? (
+                                // can be found at the end of the zone
+                                ptw = lw-size-1; headfree = pt; headsize = bs - size;
+                                mSL_DA_tl += 1;
+                                /*
+                                AAA_M_pt = pt; AAA_M_ptw = ptw; AAA_M_headfree = headfree; AAA_M_headsize = headsize;
+                                AAA_M_tailfree = tailfree; AAA_M_tailsize = tailsize;
+                                AAA_M_bs = bs; AAA_M_size = size; AAA_M_atype = 2;
+                                */
+                            ) :
+                            // try the middle of the block
+                            (((lw - (pt&mSL_StM_Zone)-65535) >= size) && (((pt | mSL_StM_Loc) - 1) >= pt)) ? (
+                                // we get the size, starting at first limit
+                                ptw = (pt | mSL_StM_Loc) - 1; // new block address : 2 words before the limit
+                                headfree = pt; headsize = ptw - pt;
+                                tailfree = ptw + size + 4; tailsize = lw - tailfree +3;
+                                mSL_DA_mz += 1;
+                                /*
+                                AAA_M_pt = pt; AAA_M_ptw = ptw; AAA_M_headfree = headfree; AAA_M_headsize = headsize;
+                                AAA_M_tailfree = tailfree; AAA_M_tailsize = tailsize;
+                                AAA_M_bs = bs; AAA_M_size = size; AAA_M_atype = 3;
+                                */
+                            ) : (
+                                // try prev in chain
+                                fail += 1; pt = 0;
+                            );
+                        );
+                    );
+                    waOut = (waOut+1) % mSL_MM_WABSize;
+                );
+            ) ;
+        ) : (
+            (ptr < pli) ? (
+                // At least a block -- it is adequate
+                ptw = pt = ptr[1] ; // "next"
+                bs = pt[mSL_Obj_Size]; // this block size
+                tailfree = pt + size + 4; tailsize = bs - size;
+                mSL_DA_ca += 1;
+                /*
+                AAA_M_pt = pt; AAA_M_ptw = ptw; AAA_M_headfree = headfree; AAA_M_headsize = headsize;
+                AAA_M_tailfree = tailfree; AAA_M_tailsize = tailsize;
+                AAA_M_bs = bs; AAA_M_size = size; AAA_M_atype = 0;
+                */
+            );
+        );
+        (ptw) ? (
+            // Just check the chosen block is "ok"
+            ((pt <= (mSL_current_memory + mSL_current_memory[mSL_MM_LowAd])) 
+                || ((pt+bs+3) >= (mSL_current_memory + mSL_current_memory[mSL_MM_HighAd]))) ? (
+                mSL_errX = 1026; // system error - block seems outsides of the memory
+                mSL_wbl = pt;
+            ) :
+            (pt[mSL_Obj_Type] != mSL_MT_FreeSt) ? (
+                mSL_errX = 1027; // system error - type is not 'free'
+                mSL_wbl = pt;
+            ) :
+            (bs < size) ? (
+                mSL_errX = 1028; // system error - size less than expected
+                mSL_wbl = pt;
+            ) :
+            (pt[bs+2] != bs) ? (
+                mSL_errX = 1029; // system error - block sizes mismatch
+                mSL_wbl = pt;
+            ) :
+            (pt[bs+3] != mSL_MT_FreeNd) ? (
+                mSL_errX = 1030; // system error - end type is not ~'free'
+                mSL_wbl = pt;
+            ) : (
+                // First, unchain this block
+                pr = pt[mSL_Free_Prev];
+                nx = pt[mSL_Free_Next];
+                (pr > 0) ? (pr[mSL_Free_Next] = nx) : (mSL_current_memory[1-pr] = nx);
+                (nx > 0) ? (nx[mSL_Free_Prev] = pr) : (mSL_current_memory[2-nx] = pr);
+                // Use what we need
+                
+                // use the selected part
+                ptw[mSL_Obj_Type] = type; ptw[mSL_Obj_Size] = ptw[size+2] = size;
+                ptw[size+3] = (mSL_CC_Chksum ~ type);
+                // Should we liberate/recreate free blocks ?
+                while (headfree+tailfree > 0) (
+                    nbl = tailfree; bs = tailsize; // bs is chunk size
+                    tailfree = headfree; tailsize = headsize; headfree = headsize = 0;
+                    nsize = bs - 4; // usable size
+                    ((nbl != 0) && (bs > 0)) ? (
+                        (nsize >= mSL_smallest_free) ? ( // 6 is min. could change to 8 or more...
+                            // build a new free bloc
+                            nbl[mSL_Obj_Type] = mSL_MT_FreeSt;
+                            nbl[nsize+3] = mSL_MT_FreeNd;
+                            nbl[mSL_Obj_Size] = nbl[nsize+2] = nsize ; // usable size
+                            // Chain it in the appropriate list
+                            ptr = mSL_current_memory + mSL_current_memory[mSL_MM_FrHd];
+                            while (ptr[0] <= nsize) (ptr += 3;);
+                            ((nsize < ptr[-3]) || (nsize >= ptr[0])) ? (
+                                mSL_errX = 1031; // system error - wrong a-list item
+                                // AAAA_Free_2 = nsize;
+                                // AAAA_Free_1 = ptr[-3];
+                                // AAAA_Free_3 = ptr[0];
+                            ) : (
+                                // Is this list empty ?
+                                (ptr[-2] < 0) ? (
+                                    // Enter the block in this list
+                                    nbl[mSL_Free_Next] = nbl[mSL_Free_Prev] = ptr[-2];
+                                    // Set the block as both head and tail
+                                    ptr[-1] = ptr[-2] = nbl;
+                                ) : (
+                                    // There is already a block in the list
+                                    // should we link as first or last block ?
+                                    ((((nbl+2)&mSL_StM_Zone))==((nbl+nsize+1)&mSL_StM_Zone)) ? (
+                                        // chain in tail
+                                        tl = ptr[-1];
+                                        nbl[mSL_Free_Prev] = tl;
+                                        nbl[mSL_Free_Next] = tl[mSL_Free_Next];
+                                        tl[mSL_Free_Next] = nbl;
+                                        ptr[-1] = nbl;
+                                    ) : (
+                                        // chain in head
+                                        hd = ptr[-2];
+                                        nbl[mSL_Free_Next] = hd; // hd becomes the 2nd block in the list
+                                        nbl[mSL_Free_Prev] = hd[mSL_Free_Prev]; // we adopt its "previous" pointer
+                                        hd[mSL_Free_Prev] = nbl;
+                                        ptr[-2] = nbl;
+                                    );
+                                );
+                            );
+                        ) : (
+                            // fill with fillers
+                            memset(nbl, mSL_Filler, bs);
+                        );
+                    );
+                );
+                res = ptw + 2; 
+                (flags & mSL_StM_FlBCheck) ? (
+                    ((res[-2] != type) || (res[-1] != size) || (res[size] != size) || (res[size+1] != (mSL_CC_Chksum ~ type))) ? (
+                        mSL_errX = 1032; // error - no free block
+                        mSL_wbl = ptw;
+                        res = 0;
+                    );
+                );
+                // fill it with garbage ? Set it to zeros ?
+                ((flags & mSL_StM_FlClear) && (size > 0) && (res > 0)) ? (
+                    memset(res, 0, size);
+                ) :
+                ((flags & mSL_StM_FlFill) && (size > 0) && (res > 0)) ? memcpy(res, 8|rand(res), size);
+                mSL_mallocated += 1;
+            );
+        ) : (
+            //B__3=        ptr ;
+            (mSL_errX == 0) ? (
+                mSL_errX = 1033; // error - no free block
+                mSL_wbl = -size;
+            );
+        );
+        
+    );
+    ((flags & mSL_StM_FlSigErr) && (mSL_errX != 0)) ? (
+        s = #; sprintf(s, "DynError %d at %d", mSL_errX, mSL_wbl);
+        strcpy(#dbg_desc, s);
+    );
+    res;
+);
+

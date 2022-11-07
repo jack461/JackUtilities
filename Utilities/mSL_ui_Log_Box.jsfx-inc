@@ -1,0 +1,252 @@
+/*
+     mSL_ui_Log_Box.jsfx-inc
+
+     A log box lets you accumulate and display messages in a viewport
+
+     It is refered as an array "B" with the following conventions:
+
+        B[0]  the name. Default : "Log Box"
+        B[1]  the number of the first string in the range
+        B[2]  the number of strings in the range
+        B[3]  the "in" pointer: where to log the next input
+        B[4]  the "start display" position
+        B[5]  the count of strings to display
+        B[6]  the number of columns to use
+        B[7]  the minimum width (pixels) of a column
+        B[8]  border, in pixel
+        B[9]  draw frame (1), border out (2), border in (4)
+        B[10] font size
+        B[11] font name
+
+    Require:
+        JackUtilities/mSL_StM_Memory.jsfx-inc
+        JackUtilities/mSL_Strings.jsfx-inc
+        ui-lib.jsfx-inc
+*/
+@init
+
+// Creation of the log box
+function mSL_log_box_new(first,last)
+local (lbx)
+(
+    lbx = mSL_StM_Alloc(12, 'LBox', mSL_StM_FlClear);
+    lbx[0] = first; first += 1;  // box name
+    lbx[11] = first; first += 1; // font name
+    strcpy(lbx[0], "Log Box");
+    lbx[1] = first; // The address of the first avail. string
+    lbx[2] = last - first + 1; // size of the array
+    lbx[3] = 0; // pointer in
+    lbx[4] = 0; // start display
+    lbx[5] = 0; // count in
+    lbx[6] = 1; // default: one column
+    lbx[7] = 250; // default: 250 pixels
+    lbx[8] = 2; // padding size
+    lbx[9] = 7; // draw flags
+    lbx[10] = 12; // font size
+    strcpy(lbx[11], "Arial");
+    lbx; // return it
+);
+
+// Modify some parameter
+function mSL_Log_Set(lbx, field, value)
+local (res, i)
+(
+    res = 0;
+    // quick check the log box
+    ((lbx[-2] === 'LBox') && (lbx[-1] === 12)) ? (
+        (field === 'cols') ? (
+            res = lbx[6];
+            ((value >= 1) && (value <= 24)) ? (
+                lbx[6] = 0|value;
+            );
+        ):
+        (field === 'wdtm') ? (
+            res = lbx[7];
+            ((value >= 50) && (value <= 2000)) ? (
+                lbx[7] = 0|value;
+            );
+        ):
+        (field === 'up') ? (
+            value = 0|min(lbx[2], max(1, value));
+            lbx[4] = (lbx[4] + value) % lbx[2];
+        ):
+        (field === 'down') ? (
+            value = 0|min(lbx[2], max(1, value));
+            lbx[4] = (lbx[4] - value + lbx[2]) % lbx[2];
+        ):
+        (field === 'left') ? (
+            lbx[4] = 0;
+        ):
+        (field === 'rght') ? (
+            lbx[4] =  (lbx[3] - 1 + lbx[2]) % lbx[2];
+        ):
+        (field === 'line') ? (
+            (value >= 0) ? (
+                res = lbx[1] + max(0, min(lbx[2]-1, 0|value));
+            ) : (
+                res = lbx[1] + max(0, (lbx[4]+1+value+lbx[2])%lbx[2]);
+            );
+        ):
+        (field === 'clir') ? (
+            lbx[3] =  lbx[4] =  lbx[5] = 0;
+            i = 0; loop (lbx[2],
+                strcpy(lbx[1] + i, "");
+                i += 1;
+            );
+        ):
+        (field === 'padd') ? (
+            res = lbx[8];
+            ((value >= 1) && (value <= 12)) ? (
+                lbx[8] = 0|value;
+            );
+        ):
+        (field === 'flgs') ? (
+            res = lbx[9];
+            ((value >= 0) && (value <= 0x7FFF)) ? (
+                lbx[9] = 0|value;
+            );
+        ):
+        (field === 'size') ? (
+            res = lbx[10]; 
+            ((value >= 6) && (value <= 180)) ? (
+                lbx[10] = 0|value;
+            ) :
+            (value === 1) ? (
+                lbx[10] = min(lbx[10]+1, 180);
+            ) :
+            (value === -1) ? (
+                lbx[10] = max(lbx[10]-1, 6);
+
+            );
+        ):
+        (field === 'name') ? (
+            (value != 0) ? (
+                strcpy(lbx[0], value);
+            );
+            res = lbx[0];
+        ):
+        (field === 'font') ? (
+            (value != 0) ? (
+                strcpy(lbx[11], value);
+            );
+            res = lbx[11];
+        ):(
+            res = -1;
+        );
+    ):(
+        res = -1;
+    ); 
+);
+
+
+// Enter a new line
+function mSL_log(lbx, str)
+local(r)
+(
+    // quick check the log box
+    ((lbx[-2] === 'LBox') && (lbx[-1] === 12)) ? (
+        r = lbx[1] + lbx[3];
+        strcpy(r, str);
+        lbx[3] = (lbx[3] + 1) % lbx[2];
+        strcpy(lbx[1] + lbx[3], "_________________");
+        lbx[5] += 1;
+    ) : (
+        r = -1;
+    );
+    r;
+);
+
+
+// Display the contents in the graphic section
+function mSL_log_Disp(lbx, gint)
+local (aptn, aptr, asiz, awdth, acolc, ainc, flgs, padv, mmd, shttl, chin, x, y)
+(
+    // quick check the log box
+    ((lbx[-2] === 'LBox') && (lbx[-1] === 12)) ? (
+
+        ui_push(); // so we can modify some parameters
+        ui_align(0,0);
+
+        // should we handle interactions ?
+        mmd = mouse_cap;
+        (gint && ui_hover()) ? (
+            chin = ui_key();
+            ((chin === 'left') || (chin === 'rght') || (chin === 'up') || (chin === 'down')) ? (
+                x = 1;
+                mmd & 0x4 ? x *= 10;
+                mmd & 0x8 ? x *= 10;
+                mSL_Log_Set(lbx, chin, x);
+                uix_latestchar = 0;
+            ):
+            ((chin >= '0') && (chin <= '9')) ? ( 
+                // number of columns
+                x = chin - '0'; x <= 0 ? x = 10; // '1' .. '9', '0' ==> 1 to 10
+                mmd & 0x20 ? x += 10;            //   with 'ctrl'   ==> 11 to 20
+                mSL_Log_Set(lbx, 'cols', x);
+                uix_latestchar = 0;
+            ):
+            ((chin === '+') && (mmd & 0x20)) ? ( 
+                mSL_Log_Set(lbx, 'size', 1);  // 'ctrl' + '+'
+                uix_latestchar = 0;
+            ):
+            ((chin === '-') && (mmd & 0x20)) ? (
+                mSL_Log_Set(lbx, 'size', -1); // 'ctrl' + '-'
+                uix_latestchar = 0;
+            ):
+            ((chin === '=') && (mmd & 0x20)) ? (
+                lbx[9] = lbx[9] ~ 0x10; // 'ctrl' + '='
+                uix_latestchar = 0;
+            ):
+            ((chin === 0x0d) && (mmd === 0x20)) ? (
+                mSL_log(lbx, " ");  // 'ctrl'+'cr' ==> add a blank line
+                uix_latestchar = 0;
+            ):
+            ((chin === 0x08) && (mmd === 0x28)) ? (
+                mSL_Log_Set(lbx, 'clir', 0);  // 'ctrl'+'shift'+'bs' ==> clear
+                uix_latestchar = 0;
+            );
+        );
+        ui_fontsize(lbx[10]);
+        ui_fontface(lbx[11]);
+        asiz = lbx[2];
+        (flgs & 16) ? (
+            aptr = (asiz + lbx[3]-1) % asiz;
+            aptn = (asiz + lbx[4]-1) % asiz;
+            ainc = asiz - 1;
+        ):(
+            aptn = lbx[3];
+            aptr = (asiz + lbx[4]) % asiz;
+            ainc = 1;
+        );
+        awdth = ui_width();
+        acolc = max(1,0|(min(lbx[6], awdth/lbx[7])));
+        padv = lbx[8];
+        flgs = lbx[9];
+        shttl = flgs & 0x8;
+        loop(acolc,
+            ui_split_left(awdth/acolc);
+            (flgs & 2) ? ui_pad(padv, padv);
+            (flgs & 1) ? ui_border();
+            (flgs & 4) ? ui_pad(padv, padv);
+                (shttl) ? (
+                    y = ui_wraptext_height(x = lbx[0]);
+                    ui_split_top(y);
+                        ui_fontbold(1);
+                        ui_wraptext(x);
+                    ui_pop();
+                    shttl = 0;
+                );
+            while ((aptr != aptn) && (ui_height() >= (y = ui_wraptext_height(x = lbx[1] + aptr)))) (
+                ui_split_top(y);
+                    ui_wraptext(x);
+                ui_pop();
+                aptr = (aptr + ainc) % asiz;
+            );
+            ui_pop();
+        );
+        ui_pop();
+    );
+);
+
+
+
