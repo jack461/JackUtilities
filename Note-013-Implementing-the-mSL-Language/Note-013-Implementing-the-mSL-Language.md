@@ -73,7 +73,7 @@ First, here are the interfaces provided:
 
 In the REAPER Folder (the one you get by the menu "Options > Show REAPER resource path in explorer/finder..."), locate the subfolder "Effects". In this subfolder, create, if you haven't already done that, a new folder, that you will name "JackUtilities". In here, you can copy the files that are in my [url=https://github.com/jack461/JackUtilities/tree/main/Utilities]github Utilities folder[/url].
 
-An example code, "JJ-JSFX-TestBed-01.jsfx" is in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-13-Implementing-the-mSL-Language]JackUtilities github Note-013[/url]. To use that, you will need most of my utilities libaries, AND the [url=https://geraintluff.github.io/jsfx-ui-lib/]ui-lib.jsfx-inc[/url] of Geraint Luff. Just put in on a track.
+An example code, "JJ-JSFX-TestBed-01.jsfx" is in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-013-Implementing-the-mSL-Language]JackUtilities github Note-013[/url]. To use that, you will need most of my utilities libaries, AND the [url=https://geraintluff.github.io/jsfx-ui-lib/]ui-lib.jsfx-inc[/url] of Geraint Luff. Just put in on a track.
 
 This plug-in just displays some events that it receives: mouse clics, keystrokes, MIDI in, sliders actions and drag and drop of filenames.
 
@@ -99,7 +99,7 @@ All the best !
 
 J. Jack.
 
-Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-013-Implementing-the-mSL-Language]JackUtilities github Note-013[/url].
+Get text and code in my [url=https://github.com/jack461/JackUtilities/tree/main/Note-013-Implementing-the-mSL-Language]JackUtilities github Note-013[/url] and [url=https://github.com/jack461/JackUtilities/tree/main/Utilities]github Utilities folder[/url].
 
 [b]TL;DR summary:[/b] mainly about the "log Box", a widget for the "ui-lib".
 

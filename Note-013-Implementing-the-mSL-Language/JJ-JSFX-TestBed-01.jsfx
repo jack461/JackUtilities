@@ -22,6 +22,7 @@ import JackUtilities/mSL_ui_Log_Box.jsfx-inc
 
 @init
 ext_noinit = 1;
+gfx_ext_retina = 1;
 
 //*/
 zzzpgstart = time_precise();

@@ -1,0 +1,455 @@
+///-------------------------------------///
+///----------  Menu Utilities  ---------///
+///--------------- Jack461 -------------///
+@init
+/*
+   A menu is described by an array of values
+   Entries in this array are indexed by the following constants
+   A code example is provided somewhere...
+*/
+// Menu description
+ui_jbtmask = 0x3f; // mask for the block type
+ui_jstring_separator = '|'; // default string separator
+ui_jmenu_max_items = 256; // choose max number of items in a menu
+ui_jmenu_type = 0; // 0 : index of menu type
+ui_jmenu_bsize = ui_jdx = 1; // 1 : index of block menu size
+ui_jmenu_res = (ui_jdx += 1) ; // interaction result
+ui_jmenu_rstring = (ui_jdx += 1) ; // interaction string index result
+ui_jmenu_mstat = (ui_jdx += 1); // mouse & modifiers status
+ui_jmenu_msmsk = (ui_jdx += 1); // mouse & modifiers mask
+ui_jmenu_posx = (ui_jdx += 1); // x mouse position
+ui_jmenu_posy = (ui_jdx += 1); // y mouse position
+ui_jmenu_changed = (ui_jdx += 1); // menu changed flag
+ui_jmenu_itc = (ui_jdx += 1); // items count
+ui_jmenu_entitm = (ui_jdx += 1); // result of ui_menu_ent
+ui_jmenu_ltick = (ui_jdx += 1); // last ticked string
+ui_jmenu_titlsiz = (ui_jdx += 1); // menu title size, a number
+// all entries after this comment are string numbers
+ui_jmenu_str = (ui_jdx += 1); // menu working string
+ui_jmenu_entstr = (ui_jdx += 1); // result of ui_menu_ent, a string
+ui_jmenu_titlfnt = (ui_jdx += 1); // menu title font, a string
+ui_jmenu_selection = (ui_jdx += 1); // last menu selection, a string
+ui_jmenu_title = (ui_jdx += 1); // menu title, a string - keep just before items
+ui_jmenu_items = (ui_jdx += 1); // first item and following
+
+// Menu type values and flags
+//    entry ui_jmenu_type is a combination of the following constants
+//    exclusive :
+ui_jmenu_typ_action = 1; // type "action"
+ui_jmenu_typ_sel = 2; // type "selection"
+ui_jmenu_typ_opt = 3; // type "options"
+ui_jmenu_typ_none = 4; // type "unspecified"
+//    options :
+ui_jmenu_opt_rect = 0x40; // draw a rectangular border
+ui_jmenu_opt_rndrect = 0x80; // draw a rounded rectangle
+ui_jmenu_opt_usesel = 0x100; // use last selected item as menu title
+ui_jmenu_opt_montop = 0x200; // draw menu on top of title
+ui_jmenu_opt_notitle = 0x400; // do not display title
+ui_jmenu_opt_dynalloc = 0x800; // dynamically alloc rather than static
+ui_jmenu_opt_lclick = 0x1000; // accept left click
+ui_jmenu_opt_rclick = 0x2000; // accept right click
+ui_jmenu_opt_alclick = 0x4000; // accept "alt" left click
+ui_jmenu_opt_arclick = 0x8000; // accept "alt" right click
+ui_jmenu_opt_kmlclick = 0x10000; // accept "cmd" left click
+ui_jmenu_opt_kmrclick = 0x20000; // accept "cmd" right click
+ui_jmenu_opt_ctlclick = 0x40000; // accept "ctrl" left click
+ui_jmenu_opt_ctrclick = 0x80000; // accept "ctrl" right click
+ui_jmenu_opt_cclick = 0x100000; // accept center click
+ui_jmenu_opt_kmcclick = 0x200000; // accept center click
+ui_jmenu_opt_all_clicks = 0xfff000;
+ui_jmenu_opt_mask = 0xfff000; // mask for tests
+ui_jmouse_modifiers = 0x3C;
+ui_jmenu_chSP = '-';
+ui_jmenu_strSP = "-";
+
+
+/*
+    Count the number of chars equal to "ch" in the string "str"
+*/
+function str_ch_count(str, ch)
+local (is, ct, lng)
+(
+    lng = strlen(str);
+    is = ct = 0;
+    while (is < lng) (
+        ct += str_getchar(str,is) == ch;
+        is += 1;
+    );
+    ct;
+);
+
+
+/*
+    For an ent "n", return
+    the actual item number, and
+    a copy or the string item in menu[ui_jmenu_entstr]
+*/
+function ui_menu_ent(menu, ent)
+local(itc, stn, i, s)
+(
+    stn = i = 0;
+    ((menu[-2] === 'Menu') && ((s = menu[-1]) === menu[s])) ? ( // quick check menu
+        itc = menu[ui_jmenu_itc];
+        (ent >= 1 && ent <= itc) ? (
+            while (ent > i) (
+                stn += 1;
+                (str_getchar(menu[ui_jmenu_items - 1 + stn], 0, 'cu') === '*') ? (i += 1;);
+            );
+            menu[ui_jmenu_entstr] = menu[ui_jmenu_items - 1 + stn];
+        );
+        menu[ui_jmenu_entitm] = stn;
+    );
+    stn;
+);
+
+
+
+// Set a tick mark for entry "ent" of "menu"
+//     tick == 0 => reset tick
+//     tick == 1 => set tick
+//     tick == -1 => invert tick
+function ui_menu_tick(menu, ent, tick)
+local (k, itc, ty, stn, stp, prev, i, p, s, mod)
+(
+    k = 0;
+    ((menu[-2] === 'Menu') && ((s = menu[-1]) === menu[s])) ? ( // quick check of menu
+        itc = menu[ui_jmenu_itc];
+        mod = 0;
+        ty = menu[ui_jmenu_type] & ui_jbtmask; // the menu type
+        (ent >=1 && ent <= itc) ? (
+            // Get actual string entry
+            stn = i = 0;
+            while (ent > i) (
+                stn += 1;
+                (str_getchar(menu[ui_jmenu_items -1 + stn], 0, 'cu') === '*') ? (i += 1;);
+            );
+            // stn is the string entry corresponding to "ent" choice
+            stp = menu[ui_jmenu_items -1 + stn]; // stp is its string pointer
+            prev = str_getchar(stp, 1, 'cu'); // get previous mode
+            ((ty === ui_jmenu_typ_sel) || (ty === ui_jmenu_typ_action))  ? (
+                i = 0; // reset all entries
+                loop(itc,
+                    p = menu[ui_jmenu_items+i];
+                    (str_getchar(p, 1, 'cu') === '!') ? (
+                        str_setchar(p, 1, ui_jmenu_chSP); 
+                        mod += 1;
+                    );
+                    i += 1;
+                );
+            );
+            ((ty === ui_jmenu_typ_sel) || (ty === ui_jmenu_typ_opt)) ? (
+                (tick === 0) ? (
+                    // reset string tick
+                    (str_getchar(p, 1, 'cu') === '!') ? (
+                        str_setchar(stp, 1, ui_jmenu_chSP);
+                        mod += 1;
+                    );
+                ) :
+                (tick === 1) ? (
+                    // set string tick
+                    (str_getchar(p, 1, 'cu') != '!') ? (
+                        str_setchar(stp, 1, '!');
+                        mod += 1;
+                    );
+                ) : 
+                (tick === -1) ? (
+                    ((prev === '!') && (ty === ui_jmenu_typ_sel)) ? (
+                        str_setchar(stp, 1, '!');
+                        mod = 0;
+                    ) : (
+                        str_setchar(stp, 1, (prev === '!') ? ui_jmenu_chSP : '!');
+                        mod += 1;
+                    );
+                );
+            );
+            // note : for "actions menus", tick marks are not allowed
+            strcpy_from(menu[ui_jmenu_selection], stp, 5);
+            menu[ui_jmenu_rstring] = stn;
+            menu[ui_jmenu_changed] = mod;
+            menu[ui_jmenu_res] = ent;
+            k = str_getchar(stp, 1, 'cu') === '!';
+        ); 
+    );
+    k;
+);
+
+
+// Get the tick mark for entry "ent" of "menu"
+//    returns 1 if the tick is set, 0 otherwise
+function ui_menu_tick(menu, ent)
+local (k, s)
+(
+    k = 0;
+    ((menu[-2] === 'Menu') && ((s = menu[-1]) === menu[s])) ? ( // quick check of menu
+        itc = menu[ui_jmenu_itc];
+        (ent >=1 && ent <= itc) ? (
+            // Get actual string entry
+            stn = i = 0;
+            while (ent > i) (
+                stn += 1;
+                (str_getchar(menu[ui_jmenu_items -1 + stn], 0, 'cu') === '*') ? (i += 1;);
+            );
+            // stn is the string entry corresponding to "ent" choice
+            k = (str_getchar(menu[ui_jmenu_items -1 + stn], 1, 'cu') === '!');
+        );
+    );
+    k;
+);
+
+
+
+// Draw and Control a menu
+// result is :
+//    0 : no menu item was selected
+//    n>0 : item "n" of menu was selected
+//
+function control_jmenu(menu)
+local (z, ty, mty, kmc, f, rs, s, cnt, mstr, idx)
+(
+    z = 0;
+    ((menu[-2] === 'Menu') && ((s = menu[-1]) === menu[s])) ? ( // quick check of menu
+        ty = menu[ui_jmenu_type]; // the menu type
+        mty = ty & ui_jmenu_opt_mask;
+        ui_jmouse_cap = mouse_cap; // need value before calling click()
+        rs = uix_drawconfig_current[9]; // retina scaling
+        kmc = ui_jmouse_cap & ui_jmouse_modifiers & menu[ui_jmenu_msmsk]; // key modifiers on click
+
+        !(ty & ui_jmenu_opt_notitle) ? (
+            (ty & ui_jmenu_opt_rect) ? ( ui_border(); );
+            (ty & ui_jmenu_opt_rndrect) ? ( gfx_roundrect(ui_left_retina(), ui_top_retina(), ui_width_retina()-1, ui_height_retina()-1, 5); );
+            ((s = menu[ui_jmenu_titlsiz]) != 0) ? (
+                ui_fontface(menu[ui_jmenu_titlfnt]);
+                ui_fontsize(s);
+            );
+            ui_text((ty & ui_jmenu_opt_usesel) ? menu[ui_jmenu_selection] : menu[ui_jmenu_title]);
+        );
+        
+        (   
+            (ui_click(1) && (   // left click
+                ((mty === ui_jmenu_opt_lclick) && (kmc === 0))         // no modifiers
+                ||  ((mty === ui_jmenu_opt_kmlclick) && (kmc === 4))   // cmd key
+                ||  ((mty === ui_jmenu_opt_alclick) && (kmc === 16))   // alt key
+                ||  ((mty === ui_jmenu_opt_ctlclick) && (kmc === 32))  // ctrl key
+                )
+            ) ||
+            (ui_click(2) && (   // right click
+                ((mty === ui_jmenu_opt_rclick) && (kmc === 0))         // no modifiers
+                ||  ((mty === ui_jmenu_opt_kmrclick) && (kmc === 4))   // cmd key
+                ||  ((mty === ui_jmenu_opt_arclick) && (kmc === 16))   // alt key
+                ||  ((mty === ui_jmenu_opt_ctrclick) && (kmc === 32))  // ctrl key
+                )
+            ) ||
+            (ui_click(64) && (  // center click
+                ((mty === ui_jmenu_opt_cclick) && (kmc === 0))         // no modifiers
+                ||  ((mty === ui_jmenu_opt_kmcclick) && (kmc === 4))   // cmd key
+                )
+            ) 
+        ) ? (
+            menu[ui_jmenu_posx] = uix_mouse_x * rs; // keep X and Y position of mouse at click
+            menu[ui_jmenu_posy] = uix_mouse_y * rs;
+            (menu[ui_jmenu_changed]) ? (
+                // recompute the string menu 
+                mstr = menu[ui_jmenu_str];
+                strcpy(mstr, "");
+                cnt = menu[ui_jmenu_itc];
+                idx = 0;
+                while (cnt > 0) (
+                    sst = menu[ui_jmenu_items+idx]; 
+                    (idx != 0) ? strcat(mstr, "|");
+                    (str_getchar(sst, 1, 'cu') === '!') ? strcat(mstr, "!");
+                    (str_getchar(sst, 2, 'cu') === '#') ? strcat(mstr, "#");
+                    (str_getchar(sst, 3, 'cu') === '>') ? strcat(mstr, ">");
+                    (str_getchar(sst, 4, 'cu') === '<') ? strcat(mstr, "<"); 
+                    tmp = #;
+                    strcpy_from(tmp,sst, 5);
+                    strcat(mstr, tmp);
+                    cnt -= 1;
+                    idx += 1;
+                );
+                menu[ui_jmenu_changed] = 0;
+            );
+            (ty & ui_jmenu_opt_notitle) ? (
+                gfx_x = max(0, uix_mouse_x * rs - 20);
+                gfx_y = max(0, uix_mouse_y * rs - 20);
+            ) : (
+                gfx_x = ui_left_retina();
+                gfx_y = (ty & ui_jmenu_opt_montop) ? ui_top_retina() : ui_bottom_retina();
+            ) ;
+            z = gfx_showmenu(menu[ui_jmenu_str]);
+            (z != 0) ? (
+                ui_menu_tick(menu, z, -1); // also sets the ui_jmenu_res entry
+                menu[ui_jmenu_mstat] = ui_jmouse_cap; // keep mouse cap status
+                z; // result return
+            );
+        );
+
+    );
+    z;
+);
+
+
+
+// Control a menu
+// use this function to associate a JSFX slider to the menu
+// items numbering start at 1, so, for 10 items, use :
+//    slider3:1<1,10,1>-my menu
+// result is :
+//    0 : no menu item was selected
+//    n>0 : item "n" of menu was selected
+//
+function control_jmenu(menu, slidervar*)
+local (z)
+(
+    z = control_jmenu(menu);
+    menu[ui_jmenu_prevsl] != slidervar ? (
+        z = slidervar; 
+        ui_menu_tick(menu, z, -1);
+        menu[ui_jmenu_prevsl] = z;
+   );
+   (z != 0) ? ui_automate(slidervar, z);
+   z;
+);
+
+
+/*
+     Build a menu as an array
+     "type" is the menu type with its flags
+     "mName" is the menu name
+     "mItems" are the menu items, separated by '|' character
+     
+     ex:
+         my_menu = make_jmenu(ui_jmenu_typ_sel, "Title", "item1|item2|item3");
+*/
+function make_jmenu(type, mName, mItems)
+local (itc, menu, w, str, ms, tab, sep, slg, cp, it, is, dst, iq, wst, flgs, r, ch)
+(
+    w = ui_jmenu_items + (itc = 1+ str_ch_count(mItems, ui_jstring_separator)); // compute item count in menu
+    menu = (type & ui_jmenu_opt_dynalloc) ? (
+        mSL_Dyn_Alloc(w, 'Menu', mSL_StM_FlClear);
+    ) : (
+        mSL_StM_Alloc(w, 'Menu', mSL_StM_FlClear);
+    );
+    menu[ui_jmenu_bsize] = w; // total size of menu
+    ((type & ui_jbtmask) === 0) ? (type |= ui_jmenu_typ_none; ); // choose an arbitrary type if none specified
+    (type & ui_jmenu_opt_all_clicks) === 0 ? (
+         // mouse button not specified; use left as default
+         type |= ui_jmenu_opt_lclick;
+    );
+    menu[ui_jmenu_type] = type;
+    menu[ui_jmenu_itc] = itc;
+    menu[ui_jmenu_titlsiz] = 12; // title font size
+    menu[ui_jmenu_msmsk] = 0x3C; // mouse & modifiers default mask
+    menu[ui_jmenu_entstr] = 0; // result of "inq ent" fonction
+    menu[ui_jmenu_titlfnt] = ms = mSL_Str_Alloc(); strcpy(ms, "Lucida Grande"); // title font
+    menu[ui_jmenu_title] = ms = mSL_Str_Alloc(); strcpy(ms, mName); // menu title
+    menu[ui_jmenu_selection] = ms = mSL_Str_Alloc(); strcpy(ms, mName); // for last menu selection
+    menu[ui_jmenu_str] = str = mSL_Str_Alloc(); // allocate a mutable string to reconstruct this menu
+    // in line 
+    tab = menu+ui_jmenu_items; sep = '|'; 
+    strcpy(str, mItems); strcat(str, "|");
+    slg = strlen(str);
+    cp = it = is = 0; 
+    // work on each substring
+    while ((is<slg) && (it<itc)) (
+        // allocate an entry
+        tab[it] = dst = mSL_Str_Alloc(); // this will be a "permanent" string
+        r = 1; flgs = 0;
+        while (r && (cp < slg)) (
+            ch = str_getchar(str,cp);
+            (ch <= 0x20) ? ( cp += 1; ) :
+            (ch === '!') ? ( flgs |= 1;  cp += 1; ) : 
+            (ch === '#') ? ( flgs |= 2;  cp += 1; ) :
+            (ch === '>') ? ( flgs |= 4;  cp += 1; ) :
+            (ch === '<') ? ( flgs |= 8;  cp += 1; ) :
+            (ch === '|') ? ( flgs |= 0x10;  r = 0; ) : ( r = 0; );
+        );
+        strcpy(dst, ""); // init
+        strcat(dst, ((flgs & 0x14) === 0) ? "*" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x11) === 1) ? "!" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x12) === 2) ? "#" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x14) === 4) ? ">" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x18) === 8) ? "<" : ui_jmenu_strSP);
+        is = cp;
+        (!(flgs & 0x10)) ? (
+            while (str_getchar(str,is) != sep) (is += 1;);
+            iq = is;
+            while (str_getchar(str,iq - 1) <= 0x20) (iq -= 1);
+            wst = #;
+            strcpy_substr(wst,str,cp,iq-cp);
+            strcat(dst, wst);
+        );
+        cp = is + 1;
+        it += 1;
+    );
+    menu[ui_jmenu_changed] = 1;
+    menu; // return the menu itself
+);
+
+
+
+/*
+    Make a menu from an array of items
+*/
+function make_jmenu(type, mName, cItems, aItems)
+local (itc, menu, w, idx, dst, src, r, flgs, cp, is)
+(
+    w = ui_jmenu_items + (itc = 0|min(ui_jmenu_max_items, max(1, cItems)));
+    menu = (type & ui_jmenu_opt_dynalloc) ? (
+        mSL_Dyn_Alloc(w, 'Menu', mSL_StM_FlClear);
+    ) : (
+        mSL_StM_Alloc(w, 'Menu', mSL_StM_FlClear);
+    );
+    menu[ui_jmenu_bsize] = w;
+    ((type & ui_jbtmask) === 0) ? (type |= ui_jmenu_typ_none; ); // choose an arbitrary type if none specified
+    (type & ui_jmenu_opt_all_clicks) === 0 ? (
+         // mouse button not specified; use left as default
+         type |= ui_jmenu_opt_lclick;
+    );
+    menu[ui_jmenu_type] = type;
+    menu[ui_jmenu_itc] = itc; // cItems;
+    menu[ui_jmenu_titlsiz] = 12; // menu font size
+    menu[ui_jmenu_msmsk] = 0x3C; // mouse & modifiers default mask
+    menu[ui_jmenu_entstr] = 0; // result of "inq ent" fonction
+    menu[ui_jmenu_titlfnt] = ms = mSL_Str_Alloc(); strcpy(ms, "Lucida Grande"); // menu font
+    menu[ui_jmenu_title] = ms = mSL_Str_Alloc(); strcpy(ms, mName); // menu name
+    menu[ui_jmenu_selection] = mSL_Str_Alloc(); strcpy(ms, mName); // for last menu selection
+    menu[ui_jmenu_str] = mSL_Str_Alloc(); // allocate a mutable string to reconstruct this menu
+    idx=0; loop(itc,
+        menu[ui_jmenu_items+idx] = dst = mSL_Str_Alloc();
+        src = aItems[idx]; slg = strlen(src);
+        r = 1; flgs = 0; cp = 0;
+        while (r && (cp < slg)) (
+            ch = str_getchar(src,cp);
+            (ch <= 0x20) ? ( cp += 1; ) :
+            (ch === '!') ? ( flgs |= 1;  cp += 1; ) : 
+            (ch === '#') ? ( flgs |= 2;  cp += 1; ) :
+            (ch === '>') ? ( flgs |= 4;  cp += 1; ) :
+            (ch === '<') ? ( flgs |= 8;  cp += 1; );
+        );
+        (cp === slg) ? (
+            flgs |= 0x10;
+        ) : (
+            is = slg;
+            while (r && (is > cp)) (
+                (str_getchar(src, is - 1) <= 0x20) ? (
+                    is -= 1;
+                ) : (
+                    r = 0;
+                );
+            );
+        );
+        strcpy(dst, ""); // init
+        strcat(dst, ((flgs & 0x14) === 0) ? "*" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x11) === 1) ? "!" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x12) === 2) ? "#" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x14) === 4) ? ">" : ui_jmenu_strSP);
+        strcat(dst, ((flgs & 0x18) === 8) ? "<" : ui_jmenu_strSP);
+        wst = #;
+        strcpy_substr(wst,src,cp,is-cp);
+        strcat(dst, wst);
+        idx += 1;
+    );
+    menu[ui_jmenu_changed] = 1;
+    menu; // return the menu itself
+);
+

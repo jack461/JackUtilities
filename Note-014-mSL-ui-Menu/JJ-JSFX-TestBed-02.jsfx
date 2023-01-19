@@ -1,0 +1,150 @@
+desc:JJ-JSFX-TestBed-02
+// Testing the Log and the Menu widget
+
+options:maxmem=33554432
+options:want_all_kb
+options:no_meter
+options:gfx_idle
+options:gfx_hz=10
+
+// We import 3 "lists" of 2000 strings
+import JackUtilities/mSL_string-list-2000X.jsfx-inc
+import JackUtilities/mSL_string-list-2000Y.jsfx-inc
+import JackUtilities/mSL_string-list-2000Z.jsfx-inc
+// The static memory manager
+import JackUtilities/mSL_StM_Memory.jsfx-inc
+// The string manager
+import JackUtilities/mSL_Strings.jsfx-inc
+// The dynamic memory manager
+import JackUtilities/mSL_Dyn_Memory.jsfx-inc
+// The memory debugger
+import JackUtilities/mSL_Mem_Dbg.jsfx-inc
+// The base UI libb
+import ui-lib.jsfx-inc
+// The Log Box widget
+import JackUtilities/mSL_ui_Log_Box.jsfx-inc
+// The Menu widget
+import JackUtilities/mSL_ui_Menu.jsfx-inc
+
+@init
+
+ext_noinit = 1;
+//
+gfx_ext_retina = 1;
+//gfx_ext_retina = 0;
+
+
+// Initialize the static memory
+mSL_StM_Init(10); // start at word 10
+ 
+
+
+// Creation of the string pools
+mSL_Str_Init(#zstrFirst, #zstrLast);   // str alloc/free
+mSL_Str_TInit(#ystrFirst, #ystrLast);  // str temp
+ 
+ 
+// Initialize the ui library
+add_ui = mSL_StM_BlockStart('ULib');
+freemem = ui_setup(add_ui); // initialize ui-lib
+mSL_StM_BlockEnd(freemem);
+  
+
+// Creation of the Log Box
+logbox = mSL_log_box_new(#xstrFirst,#xstrLast);
+mSL_Log_Set(logbox, 'font', "Monaco");  
+mSL_Log_Set(logbox, 'size', 11);
+
+mSL_C_fH = -1; // "file open" flag - set to "none"
+
+// Creation of a menu
+my_menu = make_jmenu(   // left click
+    ui_jmenu_typ_opt | ui_jmenu_opt_rndrect |
+    ui_jmenu_opt_usesel |
+    ui_jmenu_opt_lclick ,
+    "My Title", "item1|#!  item2|   item3 *  | |>Subtruc|>SubSub|
+             item4|item5|item6|<|   <!   item7 ++
+             |   item8 ! | > <sub2 |< item9|| item10");
+
+// a second menu
+log_menu = make_jmenu(   // right click
+    ui_jmenu_typ_sel | 
+    ui_jmenu_opt_rclick | ui_jmenu_opt_notitle,
+    "Log Layout", "1 column|2 columns|3 columns|4 columns|
+             height +|height -|blank|clear");
+
+// a third menu, using arrays
+arr = mSL_StM_Alloc(4, 'Data', mSL_StM_FlClear);
+arr[0] = "choice 1";
+arr[1] = "  !  choice 2    "; 
+arr[2] = "  choice3  ";
+arr[3] = "  choice4  ";
+thrd_menu = make_jmenu(  // ctrl+right click
+    ui_jmenu_typ_sel | 
+    ui_jmenu_opt_ctrclick | ui_jmenu_opt_notitle, 
+    "Ctl-Menu", 4, arr);
+@gfx
+
+
+
+// Code to test if we have a file name
+// that has been dragged and dropped in the plugin window
+// should be located before ui_start();
+efi = 1; idx = 0;
+while (efi) (
+  (efi = gfx_getdropfile(idx, #fname)) ? (
+    #str = "FILE: ";
+    strcat(#str, #fname);
+    mSL_log(logbox,#str);
+    idx += 1;
+  ) : (
+    gfx_getdropfile(-1);
+  );
+);
+
+
+//*/
+(idx) ? (
+    // open the file, read it in the log box
+    (mSL_C_fH >= 0) ? (file_close(mSL_C_fH); mSL_C_fH = -1;);
+    mSL_C_fH = file_open(#fname);
+    (mSL_C_fH >= 0) ? (
+        while (file_string(mSL_C_fH, #line))  (
+            mSL_log(logbox,#line);
+        );
+        file_close(mSL_C_fH); mSL_C_fH = -1;
+    );
+    idx = 0;
+    mSL_log(logbox,"Done Reading");
+);
+//*/
+// see:  https://geraintluff.github.io/jsfx-ui-lib/doc/html/ 
+ui_start();    // reset the UI state.
+
+
+ui_split_top(22); // some space to display the 1st menu title
+ui_push_rect(2, 0, 100, 22); // viewport for the title
+(z = control_jmenu(my_menu)) ? (
+    sprintf(#str, "Menu1: %d => %d  \"%s\"", z, ui_menu_ent(my_menu, z), my_menu[ui_jmenu_selection]);
+    mSL_log(logbox, #str);
+    mSL_log(logbox, my_menu[ui_jmenu_entstr]);
+);
+ui_pop(); // pop the menu title viewport
+ui_pop(); // use the rest of the window 
+ 
+//*/
+(z = control_jmenu(log_menu)) ? (
+    sprintf(#str, "Menu2: %d => %d  \"%s\"", z, ui_menu_ent(log_menu, z), log_menu[ui_jmenu_selection]);
+    mSL_log(logbox, #str);
+);
+//*/
+
+//*/
+(z = control_jmenu(thrd_menu)) ? (
+    sprintf(#str, "Menu3: %d => %d  \"%s\"", z, ui_menu_ent(thrd_menu, z), thrd_menu[ui_jmenu_selection]);
+    mSL_log(logbox, #str);
+);
+//*/
+
+mSL_log_Disp(logbox, 1);
+

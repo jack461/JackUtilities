@@ -197,7 +197,7 @@ local (aptn, aptr, asiz, awdth, acolc, ainc, flgs, padv, mmd, shttl, chin, x, y)
                 lbx[9] = lbx[9] ~ 0x10; // 'ctrl' + '='
                 uix_latestchar = 0;
             ):
-            ((chin === 0x0d) && (mmd === 0x20)) ? (
+            (((chin === 0x0d) || (chin === 0x20)) && (mmd === 0x20)) ? (
                 mSL_log(lbx, " ");  // 'ctrl'+'cr' ==> add a blank line
                 uix_latestchar = 0;
             ):
